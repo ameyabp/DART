@@ -3,13 +3,15 @@
     <head>
         <meta charset="utf-8">
         <title>DARTVis</title>
-        <script src="main.js"></script>
+        <script src="main_render.js"></script>
+        <!-- <script src="main_compute.js"></script> -->
         <link rel="stylesheet" href="style.css"></style>
     </head>
     <body onload="init()">
-        <!-- for better picture quality, do not assign width and height to the canvas element using css -->
-        <canvas id="gpuCanvas" width="800" height="600">
-
-        </canvas>
+        <!-- For better render quality or resolution, do not assign width and height to the canvas element using css.
+        Do it only via the html page itself or the javascript. Html and javascript assignment of canvas resolution
+        happen as the page is rendered, while css assignment happens after the page is rendered, thus causing artifacts-->
+        <canvas id="gpuCanvas" width="800" height="600"></canvas>
+        <p id="text"></p>
     </body>
 </html>
