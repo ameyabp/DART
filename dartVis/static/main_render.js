@@ -1,3 +1,6 @@
+import {fetchMapData} from './baseMap.js';
+import {vec3, mat4} from 'https://wgpu-matrix.org/dist/2.x/wgpu-matrix.module.js';
+
 // Clear color for GPURenderPassDescriptor
 const clearColor = { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
 
@@ -36,72 +39,9 @@ fn fragment_main(fragData: VertexOut) -> @location(0) vec4f
 }
 `;
 
-async function getUSMapData() {
-  var usMapData = {
-    'points': [],
-    'numPoints': 0,
-    'minX': 180,
-    'maxX': -180,
-    'meanX': 0,
-    'minY': 90,
-    'maxY': -90,
-    'meanY': 0
-  };
-  // var points = [];
-  // var meanX = 0, meanY = 0;
-  // var maxX = -180, minX = 180;
-  // var minY = 180, maxY = -180;
-
-  // await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/nation-10m.json')
-  await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-albers-10m.json')
-    .then(function(data) {
-      console.log(data);
-      data.arcs.map(function(arc) {
-        var x=0, y=0;
-        arc.map(function(point2d) {
-          var point3d = []
-          point3d.push((x += point2d[0]) * data.transform.scale[0] + data.transform.translate[0]);
-          point3d.push((y += point2d[1]) * data.transform.scale[1] + data.transform.translate[1]);
-          point3d.push(0);  // z coordinate
-          point3d.push(1);  // w cordinate for matrix operations
-
-          // white color
-          point3d.push(1);
-          point3d.push(1);
-          point3d.push(1);
-          point3d.push(1);
-          
-          usMapData.meanX += point3d[0];
-          usMapData.minX = Math.min(usMapData.minX, point3d[0]);
-          usMapData.maxX = Math.max(usMapData.maxX, point3d[0]);
-          
-          usMapData.meanY += point3d[1];
-          usMapData.minY = Math.min(usMapData.minY, point3d[1]);
-          usMapData.maxY = Math.max(usMapData.maxY, point3d[1]);
-          
-          usMapData.numPoints++;
-
-          usMapData.points = usMapData.points.concat(point3d);
-        })
-      })
-    });
-
-  usMapData.meanX = usMapData.meanX/usMapData.numPoints;
-  usMapData.meanY = usMapData.meanY/usMapData.numPoints;
-  // console.log(usMapData);
-
-  for (let i=0; i<usMapData.numPoints; i++) {
-      // x coordinate
-      usMapData.points[8*i] = (usMapData.points[8*i] - usMapData.meanX)/(usMapData.maxX - usMapData.minX)
-      // y coordinate
-      usMapData.points[8*i+1] = (usMapData.points[8*i+1] - usMapData.meanY)/(usMapData.maxY - usMapData.minY)
-  }
-  
-  usMapData.points = new Float32Array(usMapData.points)
-  return usMapData;
-}
-
 const usMapShaders = `
+@binding(0) @group(0) var<uniform> normalizedDeviceCoordinateSpaceTransformationMatrix: mat4x4<f32>;
+
 struct VertexOut {
   @builtin(position) position : vec4f,
   @location(0) color : vec4f
@@ -112,7 +52,9 @@ fn vertex_main(@location(0) position: vec4f,
                @location(1) color: vec4f) -> VertexOut
 {
   var output : VertexOut;
-  output.position = position;
+  // matrix multiplications are performed in the reverse order in wgsl
+  // so a * b will actually perform b * a
+  output.position = normalizedDeviceCoordinateSpaceTransformationMatrix * position;
   output.color = color;
   return output;
 }
@@ -128,8 +70,9 @@ fn fragment_main(fragData: VertexOut) -> @location(0) vec4f
 
 async function init() {
   // fetch USMap Data
-  var usMapData = await getUSMapData();
+  var usMapData = await fetchMapData();//getUSMapData();
   console.log(usMapData);
+  const arcID = 127;
 
   // set up stats monitor panel
   var stats = new Stats();
@@ -177,13 +120,13 @@ async function init() {
   // 4: Create vertex buffer to contain vertex data
   const vertexBuffer = device.createBuffer({
     // size: vertices.byteLength, // make it big enough to store vertices in
-    size: usMapData.points.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    size: usMapData.arcData[arcID].points.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
   });
 
   // Copy the vertex data over to the GPUBuffer using the writeBuffer() utility function
   // device.queue.writeBuffer(vertexBuffer, 0, vertices, 0, vertices.length);
-  device.queue.writeBuffer(vertexBuffer, 0, usMapData.points, 0, usMapData.points.length);
+  device.queue.writeBuffer(vertexBuffer, 0, usMapData.arcData[arcID].points, 0, usMapData.arcData[arcID].points.length);
 
   // 5: Create a GPUVertexBufferLayout and GPURenderPipelineDescriptor to provide a definition of our render pipline
   const vertexBuffers = [{
@@ -222,7 +165,34 @@ async function init() {
   // 6: Create the actual render pipeline
 
   const renderPipeline = device.createRenderPipeline(pipelineDescriptor);
-    
+  
+  // create transformation matrix
+  // matrix multiplications are performed in the reverse order in wgpu-matrix library
+  // mat4.multiply(a,b) will perform b*a
+  const ndcsTransformMatrix = mat4.multiply(mat4.scaling([2/(usMapData.maxX - usMapData.minX), 2/(usMapData.maxY - usMapData.minY), 1]), mat4.translation([-usMapData.meanX, -usMapData.meanY, 0]));
+
+  // Create buffer to hold matrix for transforming vertices to normalizedDeviceCoordinateSpace (ndcs)
+  const ndcsTransformMatrixBuffer = device.createBuffer({
+    size: ndcsTransformMatrix.byteLength, // 4x4 matrix of float32
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+  });
+
+  const ndcsTransformBindGrouop = device.createBindGroup({
+    layout: renderPipeline.getBindGroupLayout(0),
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: ndcsTransformMatrixBuffer
+        }
+      }
+    ]
+  });
+
+  // write transformation matrix to gpu buffer
+  // console.log(ndcsTransformMatrix)
+  device.queue.writeBuffer(ndcsTransformMatrixBuffer, 0, ndcsTransformMatrix.buffer, ndcsTransformMatrix.byteOffset, ndcsTransformMatrix.byteLength);
+
   // 7: Create GPUCommandEncoder to issue commands to the GPU
   // Note: render pass descriptor, command encoder, etc. are destroyed after use, fresh one needed for each frame.
   const commandEncoder = device.createCommandEncoder();
@@ -243,8 +213,9 @@ async function init() {
   // 9: Draw the triangle
 
   passEncoder.setPipeline(renderPipeline);
+  passEncoder.setBindGroup(0, ndcsTransformBindGrouop);
   passEncoder.setVertexBuffer(0, vertexBuffer);
-  passEncoder.draw(usMapData.numPoints);
+  passEncoder.draw(usMapData.arcData[arcID].numPoints);
 
   // End the render pass
   passEncoder.end();
@@ -252,3 +223,5 @@ async function init() {
   // 10: End frame by passing array of command buffers to command queue for execution
   device.queue.submit([commandEncoder.finish()]);
 }
+
+init();
