@@ -9,20 +9,19 @@ export async function drawBaseMap() {
                 states_data = data;
             });
         
-    console.log(states_data);
-    
-    console.log(topojson.feature(states_data, states_data.objects.states).features.filter(function(d) {
+    // filter out non continental US states
+    states_data.objects.states.geometries = states_data.objects.states.geometries.filter(function(d) {
         return !nonConusStates.includes(d.properties.name);
-    }));
+    });
 
-    const viewportWidth = 1100;//d3.select("#geoMap-div").attr("width");
-    const viewportHeight = 500;//d3.select("#geoMap-div").attr("height");
+    var geoMapDivSize = d3.select("#geoMap-div").node().getBoundingClientRect();
+
+    const viewportWidth = geoMapDivSize.width;
+    const viewportHeight = geoMapDivSize.height;
 
     var projection = d3.geoNaturalEarth1()
-                        // .fitExtent([[0,0], [viewportWidth, viewportHeight]]);
-                        .scale(1000)
-                        .rotate([91.0168, -32.6032, 0]);
-                        
+                        .rotate([91, 0, 0])
+                        .fitExtent([[0,0], [viewportWidth, viewportHeight]], {"type": "Polygon", "coordinates": [[[-126, 24], [-126, 50], [-66, 50], [-66, 24], [-126, 24]]]}); // need clockwise direction
 
     var path = d3.geoPath().projection(projection);
 
@@ -31,16 +30,15 @@ export async function drawBaseMap() {
                     .attr("width", viewportWidth)
                     .attr("height", viewportHeight)
                     .attr("viewBox", [0, 0, viewportWidth, viewportHeight])
-                    .style("background-color", "rgba(220, 220, 220, 255)")
                     .append("g")
                     .attr("id", "geo-zoom");
 
     var zoom = d3.zoom()
-                // .filter(function(event) {
-                // return !event.shiftKey;
-                // })
+                .filter(function(event) {
+                    return !event.shiftKey;
+                })
                 .extent([[0,0], [viewportWidth, viewportHeight]])
-                .scaleExtent([1,8])
+                .scaleExtent([1,6])
                 .translateExtent([[0,0], [viewportWidth, viewportHeight]]) 
                 .on("zoom", zoomed);
 
@@ -50,43 +48,24 @@ export async function drawBaseMap() {
 
     svgMap.call(zoom);
 
+    // US outer border
     svgMap.append("g")
         .attr("class", "states")
-        .selectAll("path")
-        .data(topojson.feature(states_data, states_data.objects.states).features.filter(function(d) {
-            return !nonConusStates.includes(d.properties.name);
-        }))
-        .enter()
         .append("path")
-        .attr("d", function(d) {
-            return path(d);
-        })
-        .attr("id", function(d) {
-            return d.properties.name;
-        })
-        .attr("stroke", "black")
-        .attr("stroke-width", 0.5)
+        .datum(topojson.mesh(states_data, states_data.objects.states, function(a,b) {   return a === b  }))
+        .attr("d", path)
+        .attr("stroke-width", 0.1)
+        .attr("stroke", "rgba(0, 0, 0, 255)")
+        .style("fill", "rgba(255, 255, 255, 0)");
+
+    // US states (interior) border
+    svgMap.select(".states")
+        .append("path")
+        .datum(topojson.mesh(states_data, states_data.objects.states, function(a,b) {   return a !== b  }))
+        .attr("stroke-width", 0.1)
+        .attr("stroke", "rgba(0, 0, 0, 255)")
+        .attr("d", path)
         .style("fill", "rgba(255, 255, 255, 255)");
 
-    // console.log(topojson.mesh(states_data, states_data.objects.states, function(a, b) {
-    //     return a !== b;
-    // }))
-
-    // svgMap.append("g")
-    //     .datum(topojson.mesh(states_data, states_data.objects.states, function(a, b) {
-    //         return a !== b;
-    //     }))
-    //     .attr("class", "states")
-    //     .attr("d", "path")
-
-    // svgMap.append("g")
-    //     .attr("class", "graticule")
-    //     .selectAll("path")
-    //     .data([d3.geoGraticule10()])
-    //     .enter()
-    //     .append("path")
-    //     .attr("d", path)
-    //     .attr("stroke", "black")
-    //     .attr("stroke-width", 0.5)
-    //     .style("fill", "None");
+    return path;
 }
