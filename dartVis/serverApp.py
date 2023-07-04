@@ -22,99 +22,98 @@ class RouteLinkData:
         self.numUpLinks[noUpLinks] = 0
 
 class Ensemble:
-    def __init__(self, modelFilesPath):
+    def __init__(self, modelFilesPath, rlData):
         # list of timestamps for the ensemble models 
-        self.timestamps = [f for f in os.listdir(modelFilesPath) if '.' not in f]
+        self.timestamps = [f for f in os.listdir(modelFilesPath) if os.path.isdir(os.path.join(modelFilesPath, f))]
         self.timestamps.sort()
+        
         # number of models in the ensemble
         netcdfFiles = [f for f in os.listdir(os.path.join(modelFilesPath, self.timestamps[0])) if 'member' in f]
         self.numEnsembleModels = len(netcdfFiles)/4
-        sampleOutputData = nc.Dataset(os.path.join(modelFilesPath, self.timestamps[0], netcdfFiles[0]))
-        self.stateVariables = list(sampleOutputData.variables.keys())
+
+        # gathering meta data
+        self.sampleOutputData = nc.Dataset(os.path.join(modelFilesPath, self.timestamps[0], netcdfFiles[0]))
+        self.stateVariables = list(self.sampleOutputData.variables.keys())
+        self.stateVariables.remove('time')
+
+        # routeLink data
+        self.rl = rlData
+
+        # load forecast data from netcdf files to python data structures in main memory
+        # map data structure hierarchy: timestamp, aggregation, daStage, stateVariable, location
+        wrfHydroData = {}   # key=timestamp, value=aggregationData
+        for timestamp in self.timestamps:
+            for ctr,f in enumerate(os.listdir(os.path.join(modelFilesPath, timestamp))):
+                if 'out' in f or 'output' in f:
+                    continue
+
+                if 'mean' in f:
+                    aggregation = 'mean'
+                elif 'sd' in f:
+                    aggregation = 'sd'
+                else:
+                    # 'member' in f:
+                    idx = f.find('member')
+                    aggregation = f[idx:idx+11]
+
+                if 'analysis' in f:
+                    daStage = 'analysis'
+                else:
+                    # 'preassim' in f
+                    daStage = 'forecast'
+
+                if 'priorinf' in f:
+                    stateVarPrefix = '_inflation_prior'
+                elif 'postinf' in f:
+                    stateVarPrefix = '_inflation_posterior'
+                else:
+                    stateVarPrefix = ''
+
+                ncData = nc.Dataset(os.path.join(modelFilesPath, timestamp, f))
+                assert(self.rl.numLinks == len(ncData.variables[self.stateVariables[0]][:]))
+
+                renderData = []
+                for i in range(self.rl.numLinks):
+                    dataPoint = {}
+                    for stateVariable in self.stateVariables:
+                        dataPoint[stateVariable + stateVarPrefix] = ncData.variables[stateVariable][i]
+                    
+                    linePoints = []
+                    linePoints.append([self.rl.lon[i], self.rl.lat[i]])
+                    locationIndices = self.rl.fromIndices[self.rl.fromIndsStart[i]: self.rl.fromIndsEnd[i]]
+                    for locInd in locationIndices:
+                        linePoints.append([self.rl.lon[locInd], self.rl.lat[locInd]])
+
+                    dataPoint['line'] = linePoints
+                    renderData.append(dataPoint)
+
+                wrfHydroData.setdefault(timestamp, {}).setdefault(aggregation, {}).setdefault(daStage, renderData)
+
+                print('Processed file '+ f)
+                ctr += 1
+                if ctr == 10:
+                    break
+            break   # testing for one timestamp data first, comment out when everything is confirmed to work
+        
+        print(wrfHydroData)
 
     def getEnsembleModelTimestampsList(self):
         return self.timestamps
     
-    def getForecastData(self):
-        # load the required forecast data from the netcdf files to python data structures in the main memory
-        return
-
-    def validateStateVariable(self, var):
-        # validate if the state variable being asked for is being forecasted by the ensemble
-        if var in self.stateVariables:
-            return True
-        else:
-            return False
-        
-    # def getStateData(self, var, timestamp):
+    def getStateVariables(self):
+        return self.stateVariables
+    
+    # def getStateData(self, timestamp, aggregation, daStage, stateVariable):
     #     if self.validateStateVariable(var):
-
-ensembleData = {
-    'timestamp': {
-        'mean': {
-            'qlink1': {
-                'lon-lat': 'scalarValue'
-            },
-            'z_gwssubbas': {
-                'lon-lat': 'scalarValue'
-            },
-            'time': {
-                'lon-lat': 'scalarValue'
-            }
-        },
-        'sd': {
-            'qlink1': {
-                'lon-lat': 'scalarValue'
-            },
-            'z_gwssubbas': {
-                'lon-lat': 'scalarValue'
-            },
-            'time': {
-                'lon-lat': 'scalarValue'
-            }
-        },
-        'member1': {
-            'qlink1': {
-                'lon-lat': 'scalarValue'
-            },
-            'z_gwssubbas': {
-                'lon-lat': 'scalarValue'
-            },
-            'time': {
-                'lon-lat': 'scalarValue'
-            }
-        },
-        'priorinf': {
-            'qlink1': {
-                'lon-lat': 'scalarValue'
-            },
-            'z_gwssubbas': {
-                'lon-lat': 'scalarValue'
-            },
-            'time': {
-                'lon-lat': 'scalarValue'
-            }
-        },
-        'postinf': {
-            'qlink1': {
-                'lon-lat': 'scalarValue'
-            },
-            'z_gwssubbas': {
-                'lon-lat': 'scalarValue'
-            },
-            'time': {
-                'lon-lat': 'scalarValue'
-            }
-        }
-    }
-}
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(prog="DARTVis - Visual Analysis Tool for Ensemble Forecast Models")
     parser.add_argument('-f', '--modelFilesPath', required=True)
+    parser.add_argument('-rl', '--routeLinkFilePath', required=True)
 
     args = parser.parse_args()
-    ensemble = Ensemble(args.modelFilesPath)
+    rlData = RouteLinkData(args.routeLinkFilePath)
+    ensemble = Ensemble(args.modelFilesPath, rlData)
     
     @app.route('/', methods=['GET'])
     def index():

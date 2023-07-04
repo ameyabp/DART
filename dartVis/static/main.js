@@ -26,12 +26,10 @@ function populateDropdownForEnsembleModelTimestamps() {
     })
 }
 
-function setupGeographicalMap() {
 
-}
 
 function init() {
-    drawBaseMap();
+    const path = drawBaseMap();
 }
 
 init();
