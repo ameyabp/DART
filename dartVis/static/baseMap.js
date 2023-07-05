@@ -48,6 +48,16 @@ export async function drawBaseMap() {
 
     svgMap.call(zoom);
 
+    // dummy rect to support pan-zoom actions anywhere in the viewport
+    svgMap.append("g")
+        .append("rect")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", viewportWidth)
+        .attr("height", viewportHeight)
+        .attr("stroke-width", 0)
+        .style("fill", "rgba(255, 255, 255, 255)")
+
     // US outer border
     svgMap.append("g")
         .attr("class", "states")
@@ -67,5 +77,9 @@ export async function drawBaseMap() {
         .attr("d", path)
         .style("fill", "rgba(255, 255, 255, 255)");
 
-    return path;
+    return {
+        path: path,
+        vpWidth: viewportWidth,
+        vpheight: viewportHeight
+    };
 }
