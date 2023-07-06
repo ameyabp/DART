@@ -2,6 +2,13 @@ import {drawBaseMap} from './baseMap.js';
 import {drawData} from './render.js';
 import {setupTooltip} from './helper.js';
 
+var globalVisualizationUIParameters = {
+    timestamp: '2022101400',
+    aggregation: 'mean',
+    daStage: 'analysis',
+    stateVariable: 'qlink1'
+}
+
 function populateDropdownForEnsembleModelTimestamps() {
     d3.json('/getEnsembleModelTimestamps',
     {
@@ -40,6 +47,11 @@ async function populateDropdownForStateVariables() {
     })
     .then(function(data) {
         d3.select("#controlPanel-div")
+            .append("label")
+            .attr("for", "selectStateVariable-dropdown")
+            .html("Color encoding")
+
+        // d3.select("#controlPanel-div")
             .append("select")
             .attr("id", "selectStateVariable-dropdown")
             .selectAll("option")
