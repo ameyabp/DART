@@ -83,18 +83,19 @@ function setupAxes(projection, sizes) {
     // longitude
     const xScale = d3.scaleLinear()
                 .domain([projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[0], projection.invert([sizes.viewportWidth-sizes.rightMargin, sizes.viewportHeight-sizes.bottomMargin])[0]])
-                .interpolate(function(a, b) {
-                    return function(t) {
-                        // denormalize t to get the actual lon value being queried for
-                        var lon1 = projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[0];
-                        var lat = projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[1];
-                        var lonn = projection.invert([sizes.viewportWidth-sizes.rightMargin, sizes.viewportHeight-sizes.bottomMargin])[0];
-                        var lon = (lonn - lon1) * t + lon1;
-
-                        // map pixel to longitude, latitude matters here at least for naturalEarth projection
-                        return projection([lon, lat])[0];
-                    }
-                });
+                .range([sizes.leftMargin, sizes.viewportWidth-sizes.rightMargin]);
+//                 .interpolate(function(a, b) {
+//                     return function(t) {
+//                         // denormalize t to get the actual lon value being queried for
+//                         var lon1 = projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[0];
+//                         var lat = projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[1];
+//                         var lonn = projection.invert([sizes.viewportWidth-sizes.rightMargin, sizes.viewportHeight-sizes.bottomMargin])[0];
+//                         var lon = (lonn - lon1) * t + lon1;
+// console.log(lon, lat, t)
+//                         // map pixel to longitude, latitude matters here at least for naturalEarth projection
+//                         return projection([lon, lat])[0];
+//                     }
+//                 });
 
     const xAxis = d3.axisBottom(xScale)
                     .tickFormat(function(d) {
@@ -123,6 +124,22 @@ function setupAxes(projection, sizes) {
         xAxis: xAxis,
         gX: gX
     };
+}
+
+function getProjectionExtentBoundingBox(topLeftLon, topLeftLat, bottomRightLon, bottomRightLat) {
+    return {
+        'type': 'Polygon',
+        'coordinates': [
+            [
+                // need clockwise direction
+                [topLeftLon, topLeftLat],
+                [bottomRightLon, topLeftLat],
+                [bottomRightLon, bottomRightLat],
+                [topLeftLon, bottomRightLat],
+                [topLeftLon, topLeftLat]
+            ]
+        ]
+    }
 }
 
 export async function drawBaseMap() {
@@ -159,7 +176,8 @@ export async function drawBaseMap() {
     var projection = d3.geoNaturalEarth1()
                         .rotate([91, 0, 0])
                         .fitExtent([[leftMargin, topMargin], [viewportWidth-rightMargin, viewportHeight-bottomMargin]], 
-                            {"type": "Polygon", "coordinates": [[[-126, 22], [-126, 50], [-66, 50], [-66, 22], [-126, 22]]]}); // need clockwise direction
+                            getProjectionExtentBoundingBox(-122, 50, -66, 22));
+                        // TODO: Make rotation and fitExtent parameters configurable as per the range of lon-lat in the data
 
     var path = d3.geoPath().projection(projection);
 
