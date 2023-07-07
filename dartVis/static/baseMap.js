@@ -2,8 +2,127 @@ export const nonConusStates = [
     'Alaska', 'Hawaii', 'Puerto Rico', 'American Samoa', 'Guam', 'Commonwealth of the Northern Mariana Islands', 'United States Virgin Islands'
 ]
 
-function setupAxes(projection) {
+const mapAxesTickLabelFontSize = 10;
+const mapAxesLabelFontSize = 15;
 
+function setupAxes(projection, sizes) {
+    // draw rects to clip map area and render axes on them
+    const yRect = d3.select("#geoMap-svg")
+                    .append("g")
+                    .attr("id", "yAxis-rect")
+        
+    yRect.append("rect")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", sizes.leftMargin)
+        .attr("height", sizes.viewportHeight)
+        .style("fill", "white");
+
+    yRect.append("text")
+        .text("LATITUDE")
+        .attr("x", -(sizes.viewportHeight-sizes.bottomMargin)/2)
+        .attr("y", 0)
+        .attr("font-size", mapAxesLabelFontSize)
+        .attr("text-anchor", "middle")
+        .attr("alignment-baseline", "hanging")
+        .attr("transform", `rotate(-90)`);
+
+    const xRect = d3.select("#geoMap-svg")
+                    .append("g")
+                    .attr("id", "xAxis-rect")
+
+    xRect.append("rect")
+        .attr("x", 0)
+        .attr("y", sizes.viewportHeight-sizes.bottomMargin)
+        .attr("width", sizes.viewportWidth)
+        .attr("height", sizes.bottomMargin)
+        .style("fill", "white");
+
+    xRect.append("text")
+        .text("LONGITUDE")
+        .attr("x", sizes.leftMargin + (sizes.viewportWidth-sizes.rightMargin)/2)
+        .attr("y", sizes.viewportHeight)
+        .attr("font-size", mapAxesLabelFontSize)
+        .attr("text-anchor", "middle")
+        .attr("alignment-baseline", "baseline");
+
+    // latitiude axis
+    const yScale = d3.scaleLinear()
+                .domain([projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[1], projection.invert([sizes.leftMargin, sizes.topMargin])[1]])
+                .interpolate(function(a, b) {
+                    return function(t) {
+                        // denormalize t to get the actual lat value being queried for
+                        var lat1 = projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[1];
+                        var latn = projection.invert([sizes.leftMargin, sizes.topMargin])[1];
+                        var lat = (latn - lat1) * t + lat1;
+
+                        // map pixel to latitude, longitude does not matter at least for naturalEarth projection
+                        return projection([0, lat])[1];
+                    }
+                });
+
+    const yAxis = d3.axisLeft(yScale)
+                    .tickFormat(function(d) {
+                        if (d > 0)
+                            return d + "° N";
+                        else
+                            return Math.abs(d) + "° S";
+                    })
+                    .ticks(6);
+
+    const gY = d3.select("#geoMap-svg")
+                .append("g")
+                .attr("transform", `translate(${sizes.leftMargin}, 0)`)
+                .attr("id", "lat-axis")
+                .call(yAxis)
+                .call(g => g.select(".domain").remove());
+
+    d3.selectAll("#lat-axis>.tick>text")
+        .style("font-size", mapAxesTickLabelFontSize);
+
+    // longitude
+    const xScale = d3.scaleLinear()
+                .domain([projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[0], projection.invert([sizes.viewportWidth-sizes.rightMargin, sizes.viewportHeight-sizes.bottomMargin])[0]])
+                .interpolate(function(a, b) {
+                    return function(t) {
+                        // denormalize t to get the actual lon value being queried for
+                        var lon1 = projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[0];
+                        var lat = projection.invert([sizes.leftMargin, sizes.viewportHeight-sizes.bottomMargin])[1];
+                        var lonn = projection.invert([sizes.viewportWidth-sizes.rightMargin, sizes.viewportHeight-sizes.bottomMargin])[0];
+                        var lon = (lonn - lon1) * t + lon1;
+
+                        // map pixel to longitude, latitude matters here at least for naturalEarth projection
+                        return projection([lon, lat])[0];
+                    }
+                });
+
+    const xAxis = d3.axisBottom(xScale)
+                    .tickFormat(function(d) {
+                        if (d > 0)
+                            return d + "° E";
+                        else
+                            return Math.abs(d) + "° W";
+                    })
+                    .ticks(10);
+
+    const gX = d3.select("#geoMap-svg")
+                .append("g")
+                .attr("transform", `translate(0, ${sizes.viewportHeight-sizes.bottomMargin})`)
+                .attr("id", "lon-axis")
+                .call(xAxis)
+                .call(g => g.select(".domain").remove());
+    
+    d3.selectAll("#lon-axis>.tick>text")
+        .style("font-size", mapAxesTickLabelFontSize);
+
+    return {
+        yScale: yScale,
+        yAxis: yAxis,
+        gY: gY,
+        xScale: xScale,
+        xAxis: xAxis,
+        gX: gX
+    };
 }
 
 export async function drawBaseMap() {
@@ -24,9 +143,18 @@ export async function drawBaseMap() {
     const viewportHeight = geoMapDivSize.height;
 
     const topMargin = 0;
-    const bottomMargin = 30;
-    const leftMargin = 50;
+    const bottomMargin = 35;
+    const leftMargin = 55;
     const rightMargin = 0;
+
+    const sizes = {
+        viewportWidth: viewportWidth,
+        viewportHeight: viewportHeight,
+        topMargin: topMargin,
+        bottomMargin: bottomMargin,
+        leftMargin: leftMargin,
+        rightMargin: rightMargin
+    };
 
     var projection = d3.geoNaturalEarth1()
                         .rotate([91, 0, 0])
@@ -94,102 +222,22 @@ export async function drawBaseMap() {
         .datum(topojson.mesh(states_data, states_data.objects.states, function(a,b) {   return a !== b  }))
         .attr("d", path);
 
-    d3.select("#geoMap-svg")
-        .append("rect")
-        .attr("id", "yAxis-rect")
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("width", leftMargin)
-        .attr("height", viewportHeight)
-        .style("fill", "white");
+    var axes = setupAxes(projection, sizes);
 
-    d3.select("#geoMap-svg")
-        .append("rect")
-        .attr("id", "xAxis-rect")
-        .attr("x", 0)
-        .attr("y", viewportHeight-bottomMargin)
-        .attr("width", viewportWidth)
-        .attr("height", bottomMargin)
-        .style("fill", "white");
-
-    const yScale = d3.scaleLinear()
-                .domain([projection.invert([leftMargin, viewportHeight-bottomMargin])[1], projection.invert([leftMargin, topMargin])[1]])
-                .interpolate(function(a, b) {
-                    return function(t) {
-                        // denormalize t to get the actual lat value being queried for
-                        var lat1 = projection.invert([leftMargin, viewportHeight-bottomMargin])[1];
-                        var latn = projection.invert([leftMargin, topMargin])[1];
-                        var lat = (latn - lat1) * t + lat1;
-
-                        // map pixel to latitude, longitude does not matter at least for naturalEarth projection
-                        return projection([0, lat])[1];
-                    }
-                });
-
-    const yAxis = d3.axisLeft(yScale)
-                    .tickFormat(function(d) {
-                        return d + "°"
-                    });
-
-    const gY = d3.select("#geoMap-svg")
-                .append("g")
-                .attr("transform", `translate(${leftMargin}, 0)`)
-                .attr("id", "lat-axis")
-                .call(yAxis)
-                .call(g => g.select(".domain").remove());
-
-    d3.selectAll("#lat-axis>.tick>text")
-        .style("font-size", 15);
-
-    const xScale = d3.scaleLinear()
-                .domain([projection.invert([leftMargin, viewportHeight-bottomMargin])[0], projection.invert([viewportWidth-rightMargin, viewportHeight-bottomMargin])[0]])
-                .interpolate(function(a, b) {
-                    return function(t) {
-                        // denormalize t to get the actual lon value being queried for
-                        var lon1 = projection.invert([leftMargin, viewportHeight-bottomMargin])[0];
-                        var lat = projection.invert([leftMargin, viewportHeight-bottomMargin])[1];
-                        var lonn = projection.invert([viewportWidth-rightMargin, viewportHeight-bottomMargin])[0];
-                        var lon = (lonn - lon1) * t + lon1;
-
-                        // map pixel to longitude, latitude matters here at least for naturalEarth projection
-                        return projection([lon, lat])[0];
-                    }
-                });
-
-    const xAxis = d3.axisBottom(xScale)
-                    .tickFormat(function(d) {
-                        return d + "°"
-                    });
-
-    const gX = d3.select("#geoMap-svg")
-                .append("g")
-                .attr("transform", `translate(0, ${viewportHeight-bottomMargin})`)
-                .attr("id", "lon-axis")
-                .call(xAxis)
-                .call(g => g.select(".domain").remove());
-    
-    d3.selectAll("#lon-axis>.tick>text")
-        .style("font-size", 15);
-    
     function zoomed(event) {
         svgMap.attr("transform", event.transform);
-        gY.call(yAxis.scale(yScale.copy().domain([projection.invert(event.transform.invert([leftMargin, viewportHeight-bottomMargin]))[1], projection.invert(event.transform.invert([leftMargin, topMargin]))[1]])))
+        axes.gY.call(axes.yAxis.scale(axes.yScale.copy().domain([projection.invert(event.transform.invert([leftMargin, viewportHeight-bottomMargin]))[1], projection.invert(event.transform.invert([leftMargin, topMargin]))[1]])))
             .call(g => g.select(".domain").remove());
-        gX.call(xAxis.scale(xScale.copy().domain([projection.invert(event.transform.invert([leftMargin, viewportHeight-bottomMargin]))[0], projection.invert(event.transform.invert([viewportWidth-rightMargin, viewportHeight-bottomMargin]))[0]])))
+        axes.gX.call(axes.xAxis.scale(axes.xScale.copy().domain([projection.invert(event.transform.invert([leftMargin, viewportHeight-bottomMargin]))[0], projection.invert(event.transform.invert([viewportWidth-rightMargin, viewportHeight-bottomMargin]))[0]])))
             .call(g => g.select(".domain").remove());
         d3.selectAll("#lon-axis>.tick>text")
-            .style("font-size", 15);
+            .style("font-size", mapAxesTickLabelFontSize);
         d3.selectAll("#lat-axis>.tick>text")
-            .style("font-size", 15);
+            .style("font-size", mapAxesTickLabelFontSize);
     }
 
     return {
         path: path,
-        vpWidth: viewportWidth,
-        vpheight: viewportHeight,
-        leftMargin: leftMargin,
-        topMargin: topMargin,
-        bottomMargin: bottomMargin,
-        rightMargin: rightMargin
+        ...sizes
     };
 }
