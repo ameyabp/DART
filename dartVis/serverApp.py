@@ -11,7 +11,7 @@ class RouteLinkData:
     def __init__(self, routeLinkFileName):
         # struct definition for storing the route link data
         routeLinkData = nc.Dataset(routeLinkFileName)
-        self.numLinks = routeLinkData.dimensions['feature_id'].size
+        self.numLinks = len(routeLinkData.variables['link'][:])
         self.lat = routeLinkData.variables['lat'][:]
         self.lon = routeLinkData.variables['lon'][:]
         self.fromIndices = routeLinkData.variables['fromIndices'][:]
@@ -20,6 +20,16 @@ class RouteLinkData:
         noUpLinks = self.fromIndsStart == 0
         self.numUpLinks = self.fromIndsEnd - self.fromIndsStart + 1
         self.numUpLinks[noUpLinks] = 0
+
+    def getDataBoundingBoxLonLat(self):
+        self.bbox = {
+            'lonMin': float(min(self.lon)),
+            'lonMax': float(max(self.lon)),
+            'latMin': float(min(self.lat)),
+            'latMax': float(max(self.lat))
+        }
+
+        return self.bbox
 
 class Ensemble:
     def __init__(self, modelFilesPath, rlData):
@@ -71,20 +81,24 @@ class Ensemble:
             if self.rl.numUpLinks[i] == 0:
                 continue
 
-            dataPoint = {}
-            dataPoint[stateVariable] = float(ncData.variables[stateVariable][i].item())
-            
-            lineData = {
-                'type': "LineString",
-                'coordinates': []
-            }
-            lineData['coordinates'].append([float(self.rl.lon[i]), float(self.rl.lat[i])])
-            locationIndices = self.rl.fromIndices[self.rl.fromIndsStart[i]: self.rl.fromIndsEnd[i]+1]
-            for locInd in locationIndices:
-                lineData['coordinates'].append([float(self.rl.lon[locInd]), float(self.rl.lat[locInd])])
+            linkIndices = self.rl.fromIndices[self.rl.fromIndsStart[i]-1: self.rl.fromIndsEnd[i]]-1
+            if (self.rl.numUpLinks[i] != len(linkIndices)):
+                print(i, self.rl.numUpLinks[i], linkIndices)
 
-            dataPoint['line'] = lineData
-            renderData.append(dataPoint)
+            for linkID in linkIndices:
+                dataPoint = {}
+                dataPoint[stateVariable] = float(ncData.variables[stateVariable][linkID].item())
+            
+                lineData = {
+                    'type': "LineString",
+                    'coordinates': []
+                }
+
+                lineData['coordinates'].append([float(self.rl.lon[i]), float(self.rl.lat[i])])
+                lineData['coordinates'].append([float(self.rl.lon[linkID]), float(self.rl.lat[linkID])])
+
+                dataPoint['line'] = lineData
+                renderData.append(dataPoint)
         
         return renderData
         # json.dump(renderData, open('render_data.json', 'w'))
@@ -129,6 +143,13 @@ if __name__=='__main__':
     def getStateVariables():
         if request.method == 'GET':
             return json.dumps(ensemble.getStateVariables())
+        else:
+            print('Expected GET method, but received ' + request.method)
+
+    @app.route('/getLonLatBoundingBox', methods=['GET'])
+    def getLonLatBoundingBox():
+        if request.method == 'GET':
+            return json.dumps(rlData.getDataBoundingBoxLonLat())
         else:
             print('Expected GET method, but received ' + request.method)
 

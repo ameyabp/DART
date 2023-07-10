@@ -4,6 +4,10 @@ export const nonConusStates = [
 
 const mapAxesTickLabelFontSize = 10;
 const mapAxesLabelFontSize = 15;
+// the padding to be added around the region of interest
+// to position it in the center of the map projection
+// specifed as a percentage of the data bounding box width and height
+const projectionExtentBboxPadding = 20;
 
 function setupAxes(projection, sizes) {
     // draw rects to clip map area and render axes on them
@@ -126,17 +130,31 @@ function setupAxes(projection, sizes) {
     };
 }
 
-function getProjectionExtentBoundingBox(topLeftLon, topLeftLat, bottomRightLon, bottomRightLat) {
+function getProjectionExtentBoundingBox(lonMin, latMax, lonMax, latMin) {
+    var bboxWidth = lonMax - lonMin;
+    var bboxHeight = latMax - latMin;
+
+    const paddingWidth = (bboxWidth * projectionExtentBboxPadding/100.0) / 2;
+    const paddingHeight = (bboxHeight * projectionExtentBboxPadding/100.0) / 2;
+
+    lonMin -= paddingWidth;
+    lonMax += paddingWidth;
+    latMin -= paddingHeight;
+    latMax += paddingHeight;
+    
+    lonMin = lonMin < -180 ? lonMin+360 : lonMin;
+    lonMax = lonMax > 180 ? lonMax-360 : lonMax;
+
     return {
         'type': 'Polygon',
         'coordinates': [
             [
                 // need clockwise direction
-                [topLeftLon, topLeftLat],
-                [bottomRightLon, topLeftLat],
-                [bottomRightLon, bottomRightLat],
-                [topLeftLon, bottomRightLat],
-                [topLeftLon, topLeftLat]
+                [lonMin, latMax],
+                [lonMax, latMax],
+                [lonMax, latMin],
+                [lonMin, latMin],
+                [lonMin, latMax]
             ]
         ]
     }
@@ -160,8 +178,8 @@ export async function drawBaseMap() {
     const viewportHeight = geoMapDivSize.height;
 
     const topMargin = 0;
-    const bottomMargin = 35;
-    const leftMargin = 55;
+    const bottomMargin = 50;
+    const leftMargin = 75;
     const rightMargin = 0;
 
     const sizes = {
@@ -173,11 +191,22 @@ export async function drawBaseMap() {
         rightMargin: rightMargin
     };
 
+    var projectionExtentBBox = null;
+    await d3.json('/getLonLatBoundingBox',
+            {
+                method: 'GET',
+                headers: {
+                    'Content-type': 'application/json; charset=UTF-8'
+                }
+            })
+            .then(function(data) {
+                projectionExtentBBox = getProjectionExtentBoundingBox(data.lonMin, data.latMax, data.lonMax, data.latMin)
+            })
+
     var projection = d3.geoNaturalEarth1()
                         .rotate([91, 0, 0])
-                        .fitExtent([[leftMargin, topMargin], [viewportWidth-rightMargin, viewportHeight-bottomMargin]], 
-                            getProjectionExtentBoundingBox(-122, 50, -66, 22));
-                        // TODO: Make rotation and fitExtent parameters configurable as per the range of lon-lat in the data
+                        .fitExtent([[leftMargin, topMargin], [viewportWidth-rightMargin, viewportHeight-bottomMargin]], projectionExtentBBox);
+                            // getProjectionExtentBoundingBox(-122, 50, -66, 22));
 
     var path = d3.geoPath().projection(projection);
 
