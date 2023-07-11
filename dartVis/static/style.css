@@ -13,3 +13,31 @@
     border: 1px solid #333;
     pointer-events: none;
   }
+
+.encodingLabel {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    text-align: right;
+    /* width: 400px;
+    line-height: 26px;
+    margin-bottom: 10px; */
+}
+  
+.encodingDropdown {
+    /* height: 20px;
+    flex: 0 0 200px; */
+    margin-left: 10px;
+}
+
+#timeSlider-div {
+    text-align: left;
+    padding-top: 15px; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#timeSlider-div :first-child {
+    width: 200px;
+}

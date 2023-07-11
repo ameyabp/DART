@@ -1,3 +1,5 @@
+import {setupTooltip} from './helper.js';
+
 export const nonConusStates = [
     'Alaska', 'Hawaii', 'Puerto Rico', 'American Samoa', 'Guam', 'Commonwealth of the Northern Mariana Islands', 'United States Virgin Islands'
 ]
@@ -269,6 +271,10 @@ export async function drawBaseMap() {
         .datum(topojson.mesh(states_data, states_data.objects.states, function(a,b) {   return a !== b  }))
         .attr("d", path);
 
+    // data group
+    svgMap.append("g")
+            .attr("id", "wrf-hydro-data");
+
     var axes = setupAxes(projection, sizes);
 
     function zoomed(event) {
@@ -283,8 +289,11 @@ export async function drawBaseMap() {
             .style("font-size", mapAxesTickLabelFontSize);
     }
 
+    const tooltip = setupTooltip(viewportWidth, viewportHeight);
+
     return {
         path: path,
+        tooltip: tooltip,
         ...sizes
     };
 }

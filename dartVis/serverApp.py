@@ -46,10 +46,10 @@ class Ensemble:
         self.sampleOutputData = nc.Dataset(os.path.join(self.modelFilesPath, self.timestamps[0], netcdfFiles[0]))
         self.stateVariables = list(self.sampleOutputData.variables.keys())
         self.stateVariables.remove('time')
-        priorInflationStateVariables = list(map(lambda x: x + '_inflation_prior', self.stateVariables))
-        posteriorInflationStateVariables = list(map(lambda x: x + '_inflation_posterior', self.stateVariables))
-        self.stateVariables.extend(priorInflationStateVariables)
-        self.stateVariables.extend(posteriorInflationStateVariables)
+        # priorInflationStateVariables = list(map(lambda x: x + '_inflation_prior', self.stateVariables))
+        # posteriorInflationStateVariables = list(map(lambda x: x + '_inflation_posterior', self.stateVariables))
+        # self.stateVariables.extend(priorInflationStateVariables)
+        # self.stateVariables.extend(posteriorInflationStateVariables)
 
         # routeLink data
         self.rl = rlData
@@ -60,7 +60,7 @@ class Ensemble:
     def getStateVariables(self):
         return self.stateVariables
     
-    def getStateData(self, timestamp, aggregation, daStage, stateVariable, inflation=None):
+    def getStateData(self, timestamp, aggregation, daStage, colorEncodingStateVariable, sizeEncodingStateVariable, inflation=None):
         # load required forecast data from netcdf files to python data structures in main memory
         # map data structure hierarchy: timestamp, aggregation, daStage, stateVariable, location
 
@@ -82,12 +82,14 @@ class Ensemble:
                 continue
 
             linkIndices = self.rl.fromIndices[self.rl.fromIndsStart[i]-1: self.rl.fromIndsEnd[i]]-1
-            if (self.rl.numUpLinks[i] != len(linkIndices)):
-                print(i, self.rl.numUpLinks[i], linkIndices)
+            assert (self.rl.numUpLinks[i] == len(linkIndices))
 
             for linkID in linkIndices:
                 dataPoint = {}
-                dataPoint[stateVariable] = float(ncData.variables[stateVariable][linkID].item())
+                dataPoint['linkID'] = int(linkID)
+
+                dataPoint[colorEncodingStateVariable] = float(ncData.variables[colorEncodingStateVariable][linkID].item())
+                dataPoint[sizeEncodingStateVariable] = float(ncData.variables[sizeEncodingStateVariable][linkID].item())
             
                 lineData = {
                     'type': "LineString",
@@ -101,7 +103,6 @@ class Ensemble:
                 renderData.append(dataPoint)
         
         return renderData
-        # json.dump(renderData, open('render_data.json', 'w'))
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(prog="DARTVis - Visual Analysis Tool for Ensemble Forecast Models")
@@ -131,10 +132,11 @@ if __name__=='__main__':
             timestamp = query['timestamp']
             aggregation = query['aggregation']
             daStage = query['daStage']
-            stateVariable = query['stateVariable']
+            sizeEncodingStateVariable = query['sizeEncodingStateVariable']
+            colorEncodingStateVariable = query['colorEncodingStateVariable']
             inflation = query['inflation']
 
-            stateData = ensemble.getStateData(timestamp, aggregation, daStage, stateVariable, inflation)
+            stateData = ensemble.getStateData(timestamp, aggregation, daStage, colorEncodingStateVariable, sizeEncodingStateVariable, inflation)
             return json.dumps(stateData)
         else:
             print('Expected POST method, but received ' + request.method)

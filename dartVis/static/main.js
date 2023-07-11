@@ -1,43 +1,74 @@
 import {drawBaseMap} from './baseMap.js';
-import {drawData} from './render.js';
-import {setupTooltip} from './helper.js';
+import {drawMapData} from './render.js';
 
-var globalVisualizationUIParameters = {
-    timestamp: '2022101400',
-    aggregation: 'mean',
-    daStage: 'analysis',
-    stateVariable: 'qlink1'
-}
+class globalVisualizationUIParameters {
+    constructor(tooltip, path) {
+        this.timestamp = '2022101400';
+        this.aggregation = 'mean';
+        this.daStage = 'analysis';
+        this.inflation = null;
+        this.tooltip = tooltip;
+        this.path = path;
+    }
 
-function populateDropdownForEnsembleModelTimestamps() {
-    d3.json('/getEnsembleModelTimestamps',
-    {
-        method: 'GET',
-        headers: {
-            'Content-type': 'application/json; charset=UTF-8'
+    init() {
+        this.colorEncodingStateVariable = d3.select("#colorEncodingStateVariable-dropdown").node().value;
+        this.sizeEncodingStateVariable = d3.select("#sizeEncodingStateVariable-dropdown").node().value;
+        this.render();
+    }
+
+    getDefaultTimestamp() {
+        return this.timestamp;
+    }
+
+    updateTimestamp(timestamp) {
+        if (this.timestamp != timestamp) {
+            this.timestamp = timestamp;
+            this.render();
         }
-    })
-    .then(function(data) {
-        d3.select("#controlPanel-div")
-            .append("select")
-            .attr("id", "selectTimestamp-dropdown")
-            .selectAll("option")
-            .data(data)
-            .join(
-                function enter(enter) {
-                    enter.append("option")
-                        .text(function(d) {
-                            return d.substring(0,4) + "/" + d.substring(4,6) + "/" + d.substring(6,8) + " " + d.substring(8) + " hrs"
-                        })
-                        .attr("value", function(d) {return d})
-                }
-            )
-    })
+    }
+
+    updateAggregation(aggregation) {
+        if (this.aggregation != aggregation) {
+            this.aggregation = aggregation;
+            this.render();
+        }
+    }
+
+    updateDaStage(daStage) {
+        if (this.daStage != daStage) {
+            this.daStage = daStage;
+            this.render();
+        }
+    }
+
+    updateColorEncodingStateVariable(colorEncodingStateVariable) {
+        if (this.colorEncodingStateVariable != colorEncodingStateVariable) {
+            this.colorEncodingStateVariable = colorEncodingStateVariable;
+            this.render();
+        }
+    }
+
+    updateSizeEncodingStateVariable(sizeEncodingStateVariable) {
+        if (this.sizeEncodingStateVariable != sizeEncodingStateVariable) {
+            this.sizeEncodingStateVariable = sizeEncodingStateVariable;
+            this.render();
+        }
+    }
+
+    updateInflation(inflation) {
+        if (this.inflation != inflation) {
+            this.inflation = inflation;
+            this.render();
+        }
+    }
+
+    render() {
+        drawMapData(this.tooltip, this.path, this.timestamp, this.aggregation, this.daStage, this.colorEncodingStateVariable, this.sizeEncodingStateVariable, this.inflation);
+    }
 }
 
 async function populateDropdownForStateVariables() {
-    var defaultStateVariable = null;
-
     await d3.json('/getStateVariables',
     {
         method: 'GET',
@@ -46,42 +77,120 @@ async function populateDropdownForStateVariables() {
         }
     })
     .then(function(data) {
+        // dropdown for color encoding
         d3.select("#controlPanel-div")
             .append("label")
-            .attr("for", "selectStateVariable-dropdown")
+            .attr("class", "encodingLabel")
+            .attr("for", "colorEncodingStateVariable-dropdown")
             .html("Color encoding")
-
-        // d3.select("#controlPanel-div")
             .append("select")
-            .attr("id", "selectStateVariable-dropdown")
+            .attr("class", "encodingDropdown")
+            .attr("id", "colorEncodingStateVariable-dropdown")
+            .on("change", function() {
+                console.log('color-encoding: ' + this.value);
+            })
             .selectAll("option")
             .data(data)
             .enter()
                 .append("option")
                 .text(function(d) { return d; })
                 .attr("value", function(d) { return d })
-                .on("change", function() {
-                    console.log(this.value);
+                .property("selected", function(d) {
+                    return d === data[0];   // qlink1
                 })
-        
-        d3.select("#selectStateVariable-dropdown")
-            .property("selected", data[0]);
 
-        defaultStateVariable = data[0];
+        // dropdown for size encoding
+        d3.select("#controlPanel-div")
+            .append("label")
+            .attr("class", "encodingLabel")
+            .attr("for", "sizeEncodingStateVariable-dropdown")
+            .html("Size encoding")
+            .append("select")
+            .attr("class", "encodingDropdown")
+            .attr("id", "sizeEncodingStateVariable-dropdown")
+            .on("change", function() {
+                console.log('size-encoding: ' + this.value);
+            })  
+            .selectAll("option")
+            .data(data)
+            .enter()
+                .append("option")
+                .text(function(d) { return d; })
+                .attr("value", function(d) { return d })
+                .property("selected", function(d) {
+                    return d === data[1];   // z_gwssubbas
+                })      
     })
+}
 
-    return defaultStateVariable;
+async function populateTimeSlider(visParameters) {
+    await d3.json('/getEnsembleModelTimestamps',
+    {
+        method: 'GET',
+        headers: {
+            'Content-type': 'application/json; charset=UTF-8'
+        }
+    })
+    .then(function(data) {
+        // sample timestamp - 2022101400
+        data = data.map(function(d) {
+            return new Date(
+                d.substring(0,4),   // year
+                d.substring(4,6),    // month
+                d.substring(6,8),   // day
+                d.substring(8)  // hours
+            )
+        });
+
+        // console.log(data);
+
+        d3.select("#timeSlider-div")
+            .append("p")
+            .attr("id", "timestamp-display")
+            .text(function() {
+                const d = d3.min(data);
+                return `Timestamp: ${d.getFullYear()}/${d.getMonth()}/${d.getDate()} : ${d.getHours() > 9 ? d.getHours() : '0'+d.getHours()} Hrs`
+            });
+
+        var sliderDiv = d3.select("#timeSlider-div")
+            .append("svg")
+            .attr("id", "timeSlider")
+            .attr("width", "100%")
+            .attr("height", 100)
+            .append("g")
+            .attr("transform", `translate(50, 20)`)
+
+        const width = document.getElementById('timeSlider-div').clientWidth * 0.75;
+
+        var slider = d3.sliderHorizontal()
+                        .min(d3.min(data))
+                        .max(d3.max(data))
+                        .width(width)
+                        .displayValue(false)
+                        .default(visParameters.getDefaultTimestamp())
+                        .on('onchange', function(value) {
+                            d3.select("#timestamp-display")
+                                .text(`Timestamp: ${value.getFullYear()}/${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}/${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()} : ${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()} Hrs`);
+                        })
+                        .on('end', function(value) {
+                            const newTimestamp = `${value.getFullYear()}${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()}${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()}`;
+                            visParameters.updateTimestamp(newTimestamp);
+                        });
+        
+        sliderDiv.call(slider);
+    })
 }
 
 async function init() {
     const baseParams = await drawBaseMap();
-    const tooltip = setupTooltip(baseParams.vpWidth, baseParams.vpheight);
+
+    const visParameters = new globalVisualizationUIParameters(baseParams.tooltip, baseParams.path);
 
     // setup UI elements
-    const defaultStateVariable = await populateDropdownForStateVariables();
+    await populateDropdownForStateVariables();
+    const defaultTimestamp = await populateTimeSlider(visParameters);
 
-    // drawData(geoPath_operator, timestamp, aggregation, daStage, stateVariable, inflation)
-    const data = drawData(tooltip, baseParams.path, '2022101400', 'mean', 'analysis', defaultStateVariable);
+    visParameters.init(defaultTimestamp);
 }
 
 init();

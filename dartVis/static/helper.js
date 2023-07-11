@@ -53,7 +53,7 @@ class Tooltip {
             throw "selection must be a non-empty selected element";
         }
     }
-  }
+}
 
 export function setupTooltip(vpWidth, vpHeight) {
     const tooltipDiv = d3.select("#geoMap-div")
@@ -63,7 +63,7 @@ export function setupTooltip(vpWidth, vpHeight) {
     function setupTooltipContent(d) {
         return "Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
                 d.line.coordinates[d.line.coordinates.length-1].map(x => x.toFixed(2)).join(', ') + 
-                "<br/>qlink1: " + d.qlink1;
+                "<br/>qlink1: " + d.qlink1 + "<br/>z_gwsubbas: " + d.z_gwsubbas;
     }
 
     const tooltip = new Tooltip(tooltipDiv, setupTooltipContent, vpWidth, vpHeight);
