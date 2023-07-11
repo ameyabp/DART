@@ -2,6 +2,7 @@ import os
 import json
 import argparse
 import functools
+import numpy as np
 import netCDF4 as nc
 from flask import Flask, render_template, request
 
@@ -29,7 +30,15 @@ class RouteLinkData:
             'latMax': float(max(self.lat))
         }
 
-        return self.bbox
+        self.centroid = {
+            'lon': float(np.mean(self.lon)),
+            'lat': float(np.mean(self.lat))
+        }
+
+        return {
+            'bbox': self.bbox,
+            'centroid': self.centroid
+        }
 
 class Ensemble:
     def __init__(self, modelFilesPath, rlData):
@@ -40,7 +49,7 @@ class Ensemble:
         
         # number of models in the ensemble
         netcdfFiles = [f for f in os.listdir(os.path.join(self.modelFilesPath, self.timestamps[0])) if 'member' in f]
-        self.numEnsembleModels = len(netcdfFiles)/4
+        self.numEnsembleModels = int(len(netcdfFiles)/4)
 
         # gathering meta data
         self.sampleOutputData = nc.Dataset(os.path.join(self.modelFilesPath, self.timestamps[0], netcdfFiles[0]))
@@ -67,9 +76,6 @@ class Ensemble:
         # construct required netcdf file name
         if inflation:
             filename = f'{daStage}_{inflation}_{aggregation}.{timestamp}.nc'
-        elif aggregation == 'member':
-            # TODO: handle this case
-            filename = f'{daStage}_{aggregation}.{timestamp}.nc'
         else:
             filename = f'{daStage}_{aggregation}.{timestamp}.nc'
 
@@ -103,6 +109,24 @@ class Ensemble:
                 renderData.append(dataPoint)
         
         return renderData
+    
+    def getEnsembleData(self, timestamp, daStage, stateVariable, linkID):
+        ensembleData = []
+
+        # construct required netcdf file name
+        for id in range(self.numEnsembleModels):
+            memberID = str(id+1).rjust(4, '0')
+            filename = f'{daStage}_member_{memberID}.{timestamp}.nc'
+
+            memberData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
+
+            dataPoint = {}
+            dataPoint['memberID'] = id
+            dataPoint[stateVariable] = float(memberData.variables[stateVariable][linkID].item())
+
+            ensembleData.append(dataPoint)
+
+        return ensembleData
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(prog="DARTVis - Visual Analysis Tool for Ensemble Forecast Models")
@@ -154,5 +178,19 @@ if __name__=='__main__':
             return json.dumps(rlData.getDataBoundingBoxLonLat())
         else:
             print('Expected GET method, but received ' + request.method)
+
+    @app.route('/getEnsembleData', methods=['POST'])
+    def getEnsembleData():
+        if request.method == 'POST':
+            query = json.loads(request.data)
+            timestamp = query['timestamp']
+            daStage = query['daStage']
+            stateVariable = query['stateVariable']
+            linkID = query['linkID']
+
+            ensembleData = ensemble.getEnsembleData(timestamp, daStage, stateVariable, linkID)
+            return json.dumps(ensembleData)
+        else:
+            print('Expected POST method, but received ' + request.method)
 
     app.run(host='127.0.0.1', port=8000, debug=True, use_evalex=False, use_reloader=True)

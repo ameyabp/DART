@@ -36,8 +36,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    height: 10vh;
 }
 
 #timeSlider-div :first-child {
-    width: 200px;
+    width: 250px;
+}
+
+#distribution-div {
+    height: 30vh;
 }

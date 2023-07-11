@@ -194,6 +194,7 @@ export async function drawBaseMap() {
     };
 
     var projectionExtentBBox = null;
+    var dataCentroid = null;
     await d3.json('/getLonLatBoundingBox',
             {
                 method: 'GET',
@@ -202,7 +203,8 @@ export async function drawBaseMap() {
                 }
             })
             .then(function(data) {
-                projectionExtentBBox = getProjectionExtentBoundingBox(data.lonMin, data.latMax, data.lonMax, data.latMin)
+                projectionExtentBBox = getProjectionExtentBoundingBox(data.bbox.lonMin, data.bbox.latMax, data.bbox.lonMax, data.bbox.latMin);
+                dataCentroid = data.centroid;
             })
 
     var projection = d3.geoNaturalEarth1()

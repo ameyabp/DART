@@ -1,5 +1,5 @@
 import {drawBaseMap} from './baseMap.js';
-import {drawMapData} from './render.js';
+import {distributionPlotScaffold, drawDistribution, drawMapData} from './render.js';
 
 class globalVisualizationUIParameters {
     constructor(tooltip, path) {
@@ -11,9 +11,10 @@ class globalVisualizationUIParameters {
         this.path = path;
     }
 
-    init() {
+    init(distributionPlotParams) {
         this.colorEncodingStateVariable = d3.select("#colorEncodingStateVariable-dropdown").node().value;
         this.sizeEncodingStateVariable = d3.select("#sizeEncodingStateVariable-dropdown").node().value;
+        this.distributionPlotParams = distributionPlotParams;
         this.render();
     }
 
@@ -64,11 +65,11 @@ class globalVisualizationUIParameters {
     }
 
     render() {
-        drawMapData(this.tooltip, this.path, this.timestamp, this.aggregation, this.daStage, this.colorEncodingStateVariable, this.sizeEncodingStateVariable, this.inflation);
+        drawMapData(this.tooltip, this.path, this.timestamp, this.aggregation, this.daStage, this.colorEncodingStateVariable, this.sizeEncodingStateVariable, this.distributionPlotParams, this.inflation);
     }
 }
 
-async function populateDropdownForStateVariables() {
+async function populateDropdownForStateVariables(visParameters) {
     await d3.json('/getStateVariables',
     {
         method: 'GET',
@@ -78,7 +79,7 @@ async function populateDropdownForStateVariables() {
     })
     .then(function(data) {
         // dropdown for color encoding
-        d3.select("#controlPanel-div")
+        d3.select("#map-controlPanel-div")
             .append("label")
             .attr("class", "encodingLabel")
             .attr("for", "colorEncodingStateVariable-dropdown")
@@ -87,7 +88,7 @@ async function populateDropdownForStateVariables() {
             .attr("class", "encodingDropdown")
             .attr("id", "colorEncodingStateVariable-dropdown")
             .on("change", function() {
-                console.log('color-encoding: ' + this.value);
+                visParameters.updateColorEncodingStateVariable(this.value);
             })
             .selectAll("option")
             .data(data)
@@ -100,7 +101,7 @@ async function populateDropdownForStateVariables() {
                 })
 
         // dropdown for size encoding
-        d3.select("#controlPanel-div")
+        d3.select("#map-controlPanel-div")
             .append("label")
             .attr("class", "encodingLabel")
             .attr("for", "sizeEncodingStateVariable-dropdown")
@@ -109,7 +110,7 @@ async function populateDropdownForStateVariables() {
             .attr("class", "encodingDropdown")
             .attr("id", "sizeEncodingStateVariable-dropdown")
             .on("change", function() {
-                console.log('size-encoding: ' + this.value);
+                visParameters.updateSizeEncodingStateVariable(this.value);
             })  
             .selectAll("option")
             .data(data)
@@ -147,20 +148,20 @@ async function populateTimeSlider(visParameters) {
         d3.select("#timeSlider-div")
             .append("p")
             .attr("id", "timestamp-display")
-            .text(function() {
+            .html(function() {
                 const d = d3.min(data);
-                return `Timestamp: ${d.getFullYear()}/${d.getMonth()}/${d.getDate()} : ${d.getHours() > 9 ? d.getHours() : '0'+d.getHours()} Hrs`
+                return `<b>Timestamp:</b><br/> ${d.getFullYear()}/${d.getMonth()}/${d.getDate()} : ${d.getHours() > 9 ? d.getHours() : '0'+d.getHours()} Hrs`
             });
 
         var sliderDiv = d3.select("#timeSlider-div")
             .append("svg")
             .attr("id", "timeSlider")
             .attr("width", "100%")
-            .attr("height", 100)
+            .attr("height", "100%")
             .append("g")
             .attr("transform", `translate(50, 20)`)
 
-        const width = document.getElementById('timeSlider-div').clientWidth * 0.75;
+        const width = document.getElementById('timeSlider-div').clientWidth * 0.8;
 
         var slider = d3.sliderHorizontal()
                         .min(d3.min(data))
@@ -170,7 +171,7 @@ async function populateTimeSlider(visParameters) {
                         .default(visParameters.getDefaultTimestamp())
                         .on('onchange', function(value) {
                             d3.select("#timestamp-display")
-                                .text(`Timestamp: ${value.getFullYear()}/${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}/${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()} : ${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()} Hrs`);
+                                .html(`<b>Timestamp:</b><br/> ${value.getFullYear()}/${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}/${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()} : ${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()} Hrs`);
                         })
                         .on('end', function(value) {
                             const newTimestamp = `${value.getFullYear()}${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()}${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()}`;
@@ -181,16 +182,23 @@ async function populateTimeSlider(visParameters) {
     })
 }
 
-async function init() {
-    const baseParams = await drawBaseMap();
+async function populateAggregationSelectionRadioBox() {
+    d3.select("#map-controlPanel-div")
+}
 
-    const visParameters = new globalVisualizationUIParameters(baseParams.tooltip, baseParams.path);
+async function init() {
+    // draw visualization scaffolds
+    const baseMapParams = await drawBaseMap();
+    const distributionPlotParams =  await distributionPlotScaffold();
+
+    const visParameters = new globalVisualizationUIParameters(baseMapParams.tooltip, baseMapParams.path);
 
     // setup UI elements
-    await populateDropdownForStateVariables();
-    const defaultTimestamp = await populateTimeSlider(visParameters);
+    await populateDropdownForStateVariables(visParameters);
+    await populateTimeSlider(visParameters);
 
-    visParameters.init(defaultTimestamp);
+    visParameters.init(distributionPlotParams);
+    // drawDistribution(1, visParameters.timestamp, visParameters.daStage, visParameters.colorEncodingStateVariable, distributionPlotParams);
 }
 
 init();
