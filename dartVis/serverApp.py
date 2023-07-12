@@ -63,15 +63,20 @@ class Ensemble:
         # routeLink data
         self.rl = rlData
 
-    def getEnsembleModelTimestampsList(self):
-        return self.timestamps
-    
-    def getStateVariables(self):
-        return self.stateVariables
+    def getUIParameters(self):
+        return {
+            'stateVariables': self.stateVariables,
+            'numEnsembleModels': self.numEnsembleModels,
+            'timestamps': self.timestamps
+        }
     
     def getStateData(self, timestamp, aggregation, daStage, stateVariable, inflation=None):
         # load required forecast data from netcdf files to python data structures in main memory
         # map data structure hierarchy: timestamp, aggregation, daStage, stateVariable, location
+
+        print(timestamp, aggregation, daStage, stateVariable, inflation)
+
+        return []
 
         # construct required netcdf file name
         if inflation:
@@ -139,13 +144,6 @@ if __name__=='__main__':
     @app.route('/', methods=['GET'])
     def index():
         return render_template('index.html')
-    
-    @app.route('/getEnsembleModelTimestamps', methods=['GET'])
-    def getEnsembleModelTimestamps():
-        if request.method == 'GET':
-            return json.dumps(ensemble.getEnsembleModelTimestampsList())
-        else:
-            print('Expected GET method, but received ' + request.method)
         
     @app.route('/getStateData', methods=['POST'])
     def getStateData():
@@ -162,10 +160,10 @@ if __name__=='__main__':
         else:
             print('Expected POST method, but received ' + request.method)
 
-    @app.route('/getStateVariables', methods=['GET'])
-    def getStateVariables():
+    @app.route('/getUIParameters', methods=['GET'])
+    def getUIParameters():
         if request.method == 'GET':
-            return json.dumps(ensemble.getStateVariables())
+            return json.dumps(ensemble.getUIParameters())
         else:
             print('Expected GET method, but received ' + request.method)
 

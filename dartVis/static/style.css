@@ -18,6 +18,7 @@
 #map-controlPanel-div {
     padding-top: 5px;
     padding-left: 20px;
+    padding-right: 5px;
 }
 
 #map-controlPanel-div > .row {

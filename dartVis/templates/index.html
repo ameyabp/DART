@@ -17,7 +17,7 @@
             <div class="row">
                 <div id="geoMap-div" class="col-9"></div>
                 <div id="map-controlPanel-div" class="col-3">
-                    <h4>Map Visualization Parameters</h4>
+                    <h4>Visualization Parameters</h4>
                     
                     <div class="row">
                         <div class="col-5">
@@ -42,7 +42,7 @@
     
                             <div class="row">
                                 <label for="stdevAgg">
-                                    <input type="radio" id="stdevAgg" name="aggregation" value="stdev"/>
+                                    <input type="radio" id="stdevAgg" name="aggregation" value="sd"/>
                                     Standard Deviation
                                 </label>
                             </div>
@@ -50,7 +50,7 @@
                             <div class="row">
                                 <label for="member">
                                     Ensemble Member
-                                    <input type="number" id="member" name="aggregation" min="1" step="1" placeholder="Member Model ID"/>
+                                    <input type="number" id="member" name="aggregation" min=0 step=0 placeholder="Member Model ID"/>
                                     <!-- TODO: Add validity check in html itself to avoid non-existent ensemble ID numbers -->
                                 </label>
                             </div>
@@ -65,7 +65,7 @@
                         <div class="col-7">
                             <div class="row">
                                 <label for="forecastDA">
-                                    <input type="radio" id="forecastDA" name="daStage" value="forecast" checked="checked"/>
+                                    <input type="radio" id="forecastDA" name="daStage" value="preassim" checked="checked"/>
                                     Forecast
                                 </label>
                             </div>
@@ -101,14 +101,14 @@
 
                             <div class="row">
                                 <label for="priorInf">
-                                    <input type="radio" id="priorInf" name="inflation" value="prior"/>
+                                    <input type="radio" id="priorInf" name="inflation" value="priorinf"/>
                                     Prior
                                 </label>
                             </div>
                             
                             <div class="row">
                                 <label for="postInf">
-                                    <input type="radio" id="postInf" name="inflation" value="posterior"/>
+                                    <input type="radio" id="postInf" name="inflation" value="postinf"/>
                                     Posterior
                                 </label>
                             </div>
@@ -118,7 +118,10 @@
                 </div>
             </div>
             <div class="row">
-                <div id="timeSlider-div" class="col-12"></div>
+                <div id="timeSlider-div" class="col-12">
+                    <p id="timestamp-display"></p>
+                    <svg id="timeSlider-svg"></svg>
+                </div>
             </div>
             <div class="row">
                 <div id="distribution-div" class="col-9"></div>

@@ -174,10 +174,8 @@ export async function drawBaseMap() {
         return !nonConusStates.includes(d.properties.name);
     });
 
-    var geoMapDivSize = d3.select("#geoMap-div").node().getBoundingClientRect();
-
-    const viewportWidth = geoMapDivSize.width;
-    const viewportHeight = geoMapDivSize.height;
+    const viewportWidth = document.getElementById('geoMap-div').clientWidth;
+    const viewportHeight = document.getElementById('geoMap-div').clientHeight;
 
     const topMargin = 0;
     const bottomMargin = 50;
