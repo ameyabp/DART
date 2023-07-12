@@ -3,6 +3,7 @@
     top: 0;
     left: 0;
     height: 60vh;
+    padding-top: 5px;
 }
 
 #tooltip-div {
@@ -12,23 +13,18 @@
     background: #fff;
     border: 1px solid #333;
     pointer-events: none;
-  }
+}
 
-.encodingLabel {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
-    text-align: right;
-    /* width: 400px;
-    line-height: 26px;
-    margin-bottom: 10px; */
+#map-controlPanel-div {
+    padding-top: 5px;
+    padding-left: 20px;
 }
-  
-.encodingDropdown {
-    /* height: 20px;
-    flex: 0 0 200px; */
-    margin-left: 10px;
+
+#map-controlPanel-div > .row {
+    /* padding: top right bottom left; */
+    padding: 5% 0% 5% 0%;
 }
+
 
 #timeSlider-div {
     text-align: left;

@@ -1,7 +1,7 @@
 import {drawBaseMap} from './baseMap.js';
 import {distributionPlotScaffold, drawDistribution, drawMapData} from './render.js';
 
-class globalVisualizationUIParameters {
+class mapVisualizationUIParameters {
     constructor(tooltip, path) {
         this.timestamp = '2022101400';
         this.aggregation = 'mean';
@@ -12,8 +12,7 @@ class globalVisualizationUIParameters {
     }
 
     init(distributionPlotParams) {
-        this.colorEncodingStateVariable = d3.select("#colorEncodingStateVariable-dropdown").node().value;
-        this.sizeEncodingStateVariable = d3.select("#sizeEncodingStateVariable-dropdown").node().value;
+        this.stateVariable = d3.select("#stateVariable-dropdown").node().value;
         this.distributionPlotParams = distributionPlotParams;
         this.render();
     }
@@ -43,16 +42,9 @@ class globalVisualizationUIParameters {
         }
     }
 
-    updateColorEncodingStateVariable(colorEncodingStateVariable) {
-        if (this.colorEncodingStateVariable != colorEncodingStateVariable) {
-            this.colorEncodingStateVariable = colorEncodingStateVariable;
-            this.render();
-        }
-    }
-
-    updateSizeEncodingStateVariable(sizeEncodingStateVariable) {
-        if (this.sizeEncodingStateVariable != sizeEncodingStateVariable) {
-            this.sizeEncodingStateVariable = sizeEncodingStateVariable;
+    updateStateVariable(stateVariable) {
+        if (this.stateVariable != stateVariable) {
+            this.stateVariable = stateVariable;
             this.render();
         }
     }
@@ -65,11 +57,11 @@ class globalVisualizationUIParameters {
     }
 
     render() {
-        drawMapData(this.tooltip, this.path, this.timestamp, this.aggregation, this.daStage, this.colorEncodingStateVariable, this.sizeEncodingStateVariable, this.distributionPlotParams, this.inflation);
+        drawMapData(this.tooltip, this.path, this.timestamp, this.aggregation, this.daStage, this.stateVariable, this.distributionPlotParams, this.inflation);
     }
 }
 
-async function populateDropdownForStateVariables(visParameters) {
+async function setupMapVisualizationParametersControlPanel(visParameters) {
     await d3.json('/getStateVariables',
     {
         method: 'GET',
@@ -78,17 +70,10 @@ async function populateDropdownForStateVariables(visParameters) {
         }
     })
     .then(function(data) {
-        // dropdown for color encoding
-        d3.select("#map-controlPanel-div")
-            .append("label")
-            .attr("class", "encodingLabel")
-            .attr("for", "colorEncodingStateVariable-dropdown")
-            .html("Color encoding")
-            .append("select")
-            .attr("class", "encodingDropdown")
-            .attr("id", "colorEncodingStateVariable-dropdown")
+        
+        d3.select("#stateVariable-dropdown")
             .on("change", function() {
-                visParameters.updateColorEncodingStateVariable(this.value);
+                visParameters.updateStateVariable(this.value);
             })
             .selectAll("option")
             .data(data)
@@ -98,33 +83,11 @@ async function populateDropdownForStateVariables(visParameters) {
                 .attr("value", function(d) { return d })
                 .property("selected", function(d) {
                     return d === data[0];   // qlink1
-                })
-
-        // dropdown for size encoding
-        d3.select("#map-controlPanel-div")
-            .append("label")
-            .attr("class", "encodingLabel")
-            .attr("for", "sizeEncodingStateVariable-dropdown")
-            .html("Size encoding")
-            .append("select")
-            .attr("class", "encodingDropdown")
-            .attr("id", "sizeEncodingStateVariable-dropdown")
-            .on("change", function() {
-                visParameters.updateSizeEncodingStateVariable(this.value);
-            })  
-            .selectAll("option")
-            .data(data)
-            .enter()
-                .append("option")
-                .text(function(d) { return d; })
-                .attr("value", function(d) { return d })
-                .property("selected", function(d) {
-                    return d === data[1];   // z_gwssubbas
-                })      
+                })  
     })
 }
 
-async function populateTimeSlider(visParameters) {
+async function setupTimeSlider(visParameters) {
     await d3.json('/getEnsembleModelTimestamps',
     {
         method: 'GET',
@@ -182,22 +145,18 @@ async function populateTimeSlider(visParameters) {
     })
 }
 
-async function populateAggregationSelectionRadioBox() {
-    d3.select("#map-controlPanel-div")
-}
-
 async function init() {
     // draw visualization scaffolds
     const baseMapParams = await drawBaseMap();
     const distributionPlotParams =  await distributionPlotScaffold();
 
-    const visParameters = new globalVisualizationUIParameters(baseMapParams.tooltip, baseMapParams.path);
+    const mapVisParameters = new mapVisualizationUIParameters(baseMapParams.tooltip, baseMapParams.path);
 
     // setup UI elements
-    await populateDropdownForStateVariables(visParameters);
-    await populateTimeSlider(visParameters);
+    await setupMapVisualizationParametersControlPanel(mapVisParameters);
+    await setupTimeSlider(mapVisParameters);
 
-    visParameters.init(distributionPlotParams);
+    mapVisParameters.init(distributionPlotParams);
     // drawDistribution(1, visParameters.timestamp, visParameters.daStage, visParameters.colorEncodingStateVariable, distributionPlotParams);
 }
 

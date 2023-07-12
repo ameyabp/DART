@@ -69,7 +69,7 @@ class Ensemble:
     def getStateVariables(self):
         return self.stateVariables
     
-    def getStateData(self, timestamp, aggregation, daStage, colorEncodingStateVariable, sizeEncodingStateVariable, inflation=None):
+    def getStateData(self, timestamp, aggregation, daStage, stateVariable, inflation=None):
         # load required forecast data from netcdf files to python data structures in main memory
         # map data structure hierarchy: timestamp, aggregation, daStage, stateVariable, location
 
@@ -94,8 +94,7 @@ class Ensemble:
                 dataPoint = {}
                 dataPoint['linkID'] = int(linkID)
 
-                dataPoint[colorEncodingStateVariable] = float(ncData.variables[colorEncodingStateVariable][linkID].item())
-                dataPoint[sizeEncodingStateVariable] = float(ncData.variables[sizeEncodingStateVariable][linkID].item())
+                dataPoint[stateVariable] = float(ncData.variables[stateVariable][linkID].item())
             
                 lineData = {
                     'type': "LineString",
@@ -136,7 +135,6 @@ if __name__=='__main__':
     args = parser.parse_args()
     rlData = RouteLinkData(args.routeLinkFilePath)
     ensemble = Ensemble(args.modelFilesPath, rlData)
-    # ensemble.getStateData('2022101400', 'mean', 'analysis', 'qlink1')
     
     @app.route('/', methods=['GET'])
     def index():
@@ -156,11 +154,10 @@ if __name__=='__main__':
             timestamp = query['timestamp']
             aggregation = query['aggregation']
             daStage = query['daStage']
-            sizeEncodingStateVariable = query['sizeEncodingStateVariable']
-            colorEncodingStateVariable = query['colorEncodingStateVariable']
+            stateVariable = query['stateVariable']
             inflation = query['inflation']
 
-            stateData = ensemble.getStateData(timestamp, aggregation, daStage, colorEncodingStateVariable, sizeEncodingStateVariable, inflation)
+            stateData = ensemble.getStateData(timestamp, aggregation, daStage, stateVariable, inflation)
             return json.dumps(stateData)
         else:
             print('Expected POST method, but received ' + request.method)

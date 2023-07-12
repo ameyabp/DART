@@ -16,7 +16,106 @@
         <div class="container-fluid">
             <div class="row">
                 <div id="geoMap-div" class="col-9"></div>
-                <div id="map-controlPanel-div" class="col-3"></div>
+                <div id="map-controlPanel-div" class="col-3">
+                    <h4>Map Visualization Parameters</h4>
+                    
+                    <div class="row">
+                        <div class="col-5">
+                            <label for="stateVariable-dropdown"><b>State Variable</b></label>
+                        </div>
+                        <div class="col-7">
+                            <select id="stateVariable-dropdown"></select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-5">
+                            <b>Aggregation</b>
+                        </div>
+                        <div class="col-7">
+                            <div class="row">
+                                <label for="meanAgg">
+                                    <input type="radio" id="meanAgg" name="aggregation" value="mean" checked="checked"/>
+                                    Mean
+                                </label>
+                            </div>
+    
+                            <div class="row">
+                                <label for="stdevAgg">
+                                    <input type="radio" id="stdevAgg" name="aggregation" value="stdev"/>
+                                    Standard Deviation
+                                </label>
+                            </div>
+
+                            <div class="row">
+                                <label for="member">
+                                    Ensemble Member
+                                    <input type="number" id="member" name="aggregation" min="1" step="1" placeholder="Member Model ID"/>
+                                    <!-- TODO: Add validity check in html itself to avoid non-existent ensemble ID numbers -->
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-5">
+                            <b>Data Assimilation Phase</b>
+                        </div>
+
+                        <div class="col-7">
+                            <div class="row">
+                                <label for="forecastDA">
+                                    <input type="radio" id="forecastDA" name="daStage" value="forecast" checked="checked"/>
+                                    Forecast
+                                </label>
+                            </div>
+
+                            <div class="row">
+                                <label for="analysisDA">
+                                    <input type="radio" id="analysisDA" name="daStage" value="analysis"/>
+                                    Analysis
+                                </label>
+                            </div>
+
+                            <div class="row">
+                                <label for="incrementDA">
+                                    <input type="radio" id="incrementDA" name="daStage" value="increment"/>
+                                    Increment
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-5">
+                            <b>Inflation</b>
+                        </div>
+
+                        <div class="col-7">
+                            <div class="row">
+                                <label for="noneInf">
+                                    <input type="radio" id="noneInf" name="inflation" value="none" checked="checked"/>
+                                    None
+                                </label>
+                            </div>
+
+                            <div class="row">
+                                <label for="priorInf">
+                                    <input type="radio" id="priorInf" name="inflation" value="prior"/>
+                                    Prior
+                                </label>
+                            </div>
+                            
+                            <div class="row">
+                                <label for="postInf">
+                                    <input type="radio" id="postInf" name="inflation" value="posterior"/>
+                                    Posterior
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
             </div>
             <div class="row">
                 <div id="timeSlider-div" class="col-12"></div>
