@@ -76,8 +76,6 @@ class Ensemble:
 
         print(timestamp, aggregation, daStage, stateVariable, inflation)
 
-        return []
-
         # construct required netcdf file name
         if inflation:
             filename = f'{daStage}_{inflation}_{aggregation}.{timestamp}.nc'
@@ -153,7 +151,7 @@ if __name__=='__main__':
             aggregation = query['aggregation']
             daStage = query['daStage']
             stateVariable = query['stateVariable']
-            inflation = query['inflation']
+            inflation = None if query['inflation'] == 'none' else query['inflation']
 
             stateData = ensemble.getStateData(timestamp, aggregation, daStage, stateVariable, inflation)
             return json.dumps(stateData)

@@ -162,7 +162,7 @@ function getProjectionExtentBoundingBox(lonMin, latMax, lonMax, latMin) {
     }
 }
 
-export async function drawBaseMap() {
+export async function setupBaseMap() {
     var states_data = [];
     await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json')
             .then(function(data) {

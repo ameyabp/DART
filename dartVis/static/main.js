@@ -1,5 +1,6 @@
-import {drawBaseMap} from './baseMap.js';
-import {distributionPlotScaffold, drawDistribution, drawMapData} from './render.js';
+import { setupBaseMap } from './baseMap.js';
+import { setupDistributionPlots } from './distribution_plot.js';
+import { drawMapData } from './render.js';
 
 class uiParameters {
     constructor(tooltip, path) {
@@ -55,7 +56,7 @@ class uiParameters {
     }
 
     render() {
-        drawMapData(this.tooltip, this.path, this.timestamp, this.aggregation, this.daStage, this.stateVariable, this.distributionPlotParams, this.inflation);
+        drawMapData(this.tooltip, this.path, this.timestamp, this.aggregation, this.daStage, this.stateVariable, this.inflation);
     }
 }
 
@@ -180,8 +181,8 @@ async function setupControlPanel(visParameters) {
 
 async function init() {
     // draw visualization scaffolds
-    const baseMapParams = await drawBaseMap();
-    const distributionPlotParams =  await distributionPlotScaffold();
+    const baseMapParams = await setupBaseMap();
+    const distributionPlotParams =  await setupDistributionPlots();
 
     const uiParams = new uiParameters(baseMapParams.tooltip, baseMapParams.path);
 

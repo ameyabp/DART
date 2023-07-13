@@ -18,7 +18,7 @@
 #map-controlPanel-div {
     padding-top: 5px;
     padding-left: 20px;
-    padding-right: 5px;
+    /* padding-right: 5px; */
 }
 
 #map-controlPanel-div > .row {
@@ -40,6 +40,6 @@
     width: 250px;
 }
 
-#distribution-div {
+#distribution1-div, #distribution2-div, #hydrograph-div {
     height: 30vh;
 }
