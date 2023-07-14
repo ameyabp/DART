@@ -126,15 +126,15 @@ async function setupControlPanel(visParameters) {
         defaultParameters['timestamp'] = `${minTimestamp.getFullYear()}${minTimestamp.getMonth() > 9 ? minTimestamp.getMonth() : '0'+minTimestamp.getMonth()}${minTimestamp.getDate() > 9 ? minTimestamp.getDate() : '0'+minTimestamp.getDate()}${minTimestamp.getHours() > 9 ? minTimestamp.getHours() : '0'+minTimestamp.getHours()}`;
 
         d3.select("#timestamp-display")
-            .html(`<b>Timestamp:</b><br/> ${minTimestamp.getFullYear()}/${minTimestamp.getMonth() > 9 ? minTimestamp.getMonth() : '0'+minTimestamp.getMonth()}/${minTimestamp.getDate() > 9 ? minTimestamp.getDate() : '0'+minTimestamp.getDate()} : ${minTimestamp.getHours() > 9 ? minTimestamp.getHours() : '0'+minTimestamp.getHours()} Hrs`);
+            .html(`${minTimestamp.getFullYear()}/${minTimestamp.getMonth() > 9 ? minTimestamp.getMonth() : '0'+minTimestamp.getMonth()}/${minTimestamp.getDate() > 9 ? minTimestamp.getDate() : '0'+minTimestamp.getDate()} : ${minTimestamp.getHours() > 9 ? minTimestamp.getHours() : '0'+minTimestamp.getHours()} Hrs`);
 
+        const width = document.getElementById('timeSlider-div').clientWidth * 0.9;
+        
         var sliderDiv = d3.select("#timeSlider-svg")
-            .attr("width", "100%")
-            .attr("height", "100%")
-            .append("g")
-            .attr("transform", `translate(50, 20)`)
-
-        const width = document.getElementById('timeSlider-div').clientWidth * 0.8;
+                        .attr("width", "100%")
+                        .attr("height", "100%")
+                        .append("g")
+                        .attr("transform", `translate(50, 20)`)
 
         var slider = d3.sliderHorizontal()
                         .min(d3.min(data.timestamps))
@@ -144,7 +144,7 @@ async function setupControlPanel(visParameters) {
                         .default(minTimestamp)
                         .on('onchange', function(value) {
                             d3.select("#timestamp-display")
-                                .html(`<b>Timestamp:</b><br/> ${value.getFullYear()}/${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}/${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()} : ${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()} Hrs`);
+                                .html(`${value.getFullYear()}/${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}/${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()} : ${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()} Hrs`);
                         })
                         .on('end', function(value) {
                             const newTimestamp = `${value.getFullYear()}${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()}${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()}`;
