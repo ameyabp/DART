@@ -147,20 +147,20 @@ function setupDistributionPlot(id) {
                         .style("opacity", 0.2)
 
     // data area
-    // distributionSvg.select(`#${divIdPrefix}-plot`)
-    //                 .append("g")
-    //                 .attr("id", `${divIdPrefix}-data`);
+    distributionSvg.select(`#${divIdPrefix}-plot`)
+                    .append("g")
+                    .attr("id", `${divIdPrefix}-data`);
 
     // setup details text panel
     distributionSvg.append("text")
                     .attr("id", `${divIdPrefix}-text`)
-                    .attr("transform", `translate(${2 * distributionPlotParams.leftMargin}, 0)`)
+                    .attr("transform", `translate(${1.5 * distributionPlotParams.leftMargin}, 0)`)
                     .attr("text-anchor", "start")
                     .attr("alignment-baseline", "hanging")
 
     // zoom
     var zoom = d3.zoom()
-                .scaleExtent([1,4])
+                .scaleExtent([1,6])
                 .extent([[0, 0], [distributionPlotParams.plotWidth, distributionPlotParams.plotHeight]])
                 .translateExtent([[0, 0], [distributionPlotParams.plotWidth, distributionPlotParams.plotHeight]])
                 .on("zoom", function(event) {
@@ -222,7 +222,7 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
             })
     }).then(function(data) {
         console.log(data);
-        
+
         const distributionPlotID = distributionPlotParams.getPlotID();
         const divIdPrefix = `distribution${distributionPlotID}`;
         distributionPlotParams.updatePlotID();
@@ -243,47 +243,33 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
 
         console.log(density);
 
-        // clean old data
-        d3.select(`#${divIdPrefix}-data`).remove();
-
-        d3.select(`#${divIdPrefix}-plot`)
-            .append("g")
-            .attr("id", `${divIdPrefix}-data`)
-            .append("path")
+        d3.select(`#${divIdPrefix}-data`)
             .attr("clip-path", `url(#${divIdPrefix}-clip)`)
-            .datum(density)
-            .attr("fill", "steelblue")
-            .attr("stroke-width", 0)
-            .attr("d", d3.area()
-                        .x(function(d) {    return xScale(d[0]);    })
-                        .y0(distributionPlotParams.yScale(0))
-                        .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
-            );
-            // .selectAll("path")
-            // .data([density])
-            // .join(
-            //     function enter(enter) {
-            //         enter.append("path")
-            //             .attr("fill", "steelblue")
-            //             .attr("stroke-width", 0)
-            //             .attr("d", d3.area()
-            //                         .x(function(d) {    return xScale(d[0]);    })
-            //                         .y0(distributionPlotParams.yScale(0))
-            //                         .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
-            //             );
-            //     },
-                // function update(update) {
-                //     update.attr("fill", "steelblue")
-                //         .attr("stroke-width", 0)
-                //         .transition()
-                //         .duration(200)
-                //         .attr("d", d3.area()
-                //                     .x(function(d) {    return xScale(d[0]);    })
-                //                     .y0(distributionPlotParams.yScale(0))
-                //                     .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
-                //         );
-                // }
-            // )
+            .selectAll("path")
+            .data([density])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("fill", "steelblue")
+                        .attr("stroke-width", 0)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return xScale(d[0]);    })
+                                    .y0(distributionPlotParams.yScale(0))
+                                    .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
+                        );
+                },
+                function update(update) {
+                    update.attr("fill", "steelblue")
+                        .attr("stroke-width", 0)
+                        .transition()
+                        .duration(200)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return xScale(d[0]);    })
+                                    .y0(distributionPlotParams.yScale(0))
+                                    .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
+                        );
+                }
+            )
             
 
         d3.select(`#${divIdPrefix}-text`)
