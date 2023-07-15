@@ -118,13 +118,18 @@ class Ensemble:
         # construct required netcdf file name
         for id in range(self.numEnsembleModels):
             memberID = str(id+1).rjust(4, '0')
-            filename = f'{daStage}_member_{memberID}.{timestamp}.nc'
+            analysisFilename = f'analysis_member_{memberID}.{timestamp}.nc'
+            forecastFilename = f'preassim_member_{memberID}.{timestamp}.nc'
 
-            memberData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
+            memberAnalysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
+            memberForecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
 
             dataPoint = {}
             dataPoint['memberID'] = id
-            dataPoint[stateVariable] = float(memberData.variables[stateVariable][linkID].item())
+            dataPoint[stateVariable] = {
+                'analysis': float(memberAnalysisData.variables[stateVariable][linkID].item()),
+                'forecast': float(memberForecastData.variables[stateVariable][linkID].item())
+            }
 
             ensembleData.append(dataPoint)
 

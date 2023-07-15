@@ -21,14 +21,33 @@ class distributionPlotParams {
 
     static plotID = 1;
 
+    static legend = [
+        {
+            daStage: 'Analysis',
+            color: '#1f78b4'    // blue
+        },
+        {
+            daStage: 'Forecast',
+            color: '#33a02c'    // green
+        }
+    ]
+
+    static legendVerticalPadding = 5;
+    static legendHorizontalPadding = 5;
+    static legendRectWidth = 0;
+    static legendRectHeight = 0;
+    static legendLabelFontSize = 10;
+
     static setDivWidth(width) {
         this.divWidth = width;
         this.plotWidth = this.divWidth - this.leftMargin - this.rightMargin;
+        this.legendRectWidth = this.plotWidth * 0.1;
     }
 
     static setDivHeight(height) {
         this.divHeight = height;
         this.plotHeight = this.divHeight - this.topMargin - this.bottomMargin;
+        this.legendRectHeight = this.plotHeight * 0.05;
     }
 
     static setVerticalAxis(scale, axis) {
@@ -149,12 +168,50 @@ function setupDistributionPlot(id) {
     // data area
     distributionSvg.select(`#${divIdPrefix}-plot`)
                     .append("g")
-                    .attr("id", `${divIdPrefix}-data`);
+                    .attr("id", `${divIdPrefix}-analysis-data`);
+
+    distributionSvg.select(`#${divIdPrefix}-plot`)
+                    .append("g")
+                    .attr("id", `${divIdPrefix}-forecast-data`);
+
+    // legend
+    distributionSvg.select(`#${divIdPrefix}-plot`)
+                    .append("g")
+                    .attr("id", `${divIdPrefix}-legend`)
+                    
+    d3.select(`#${divIdPrefix}-legend`)
+        .selectAll("rect")
+        .data(distributionPlotParams.legend)
+        .enter()
+            .append("rect")
+            .attr("x", distributionPlotParams.plotWidth * 0.7)
+            .attr("y", function(d, i) {
+                return (distributionPlotParams.legendRectHeight + distributionPlotParams.legendVerticalPadding) * i + distributionPlotParams.legendVerticalPadding;
+            })
+            .attr("width", distributionPlotParams.legendRectWidth)
+            .attr("height", distributionPlotParams.legendRectHeight)
+            .style("stroke-width", 0)
+            .style("fill", function(d) {    return d.color; })
+            .style("opacity", 0.5);
+
+    d3.select(`#${divIdPrefix}-legend`)
+        .selectAll("text")
+        .data(distributionPlotParams.legend)
+        .enter()
+            .append("text")
+            .text(function(d) { return d.daStage;   })
+            .attr("font-size", distributionPlotParams.legendLabelFontSize)
+            .attr("x", distributionPlotParams.plotWidth * 0.7 + distributionPlotParams.legendRectWidth + distributionPlotParams.legendHorizontalPadding)
+            .attr("y", function(d, i) {
+                return (distributionPlotParams.legendRectHeight + distributionPlotParams.legendVerticalPadding) * i + distributionPlotParams.legendVerticalPadding;
+            })
+            .attr("text-anchor", "start")
+            .attr("alignment-baseline", "hanging");
 
     // setup details text panel
     distributionSvg.append("text")
                     .attr("id", `${divIdPrefix}-text`)
-                    .attr("transform", `translate(${1.5 * distributionPlotParams.leftMargin}, 0)`)
+                    .attr("transform", `translate(${distributionPlotParams.leftMargin}, 0)`)
                     .attr("text-anchor", "start")
                     .attr("alignment-baseline", "hanging")
 
@@ -185,7 +242,16 @@ function zoomDistributionPlot(event, plotID) {
         .attr("y2", d => newYScale(d))
 
     // render zoomed data
-    d3.select(`#${divIdPrefix}-data`)
+    d3.select(`#${divIdPrefix}-analysis-data`)
+        .selectAll("path")
+        .attr("d", d3.area()
+            .x(function(d) {    return distributionPlotParams.xScale[plotID](d[0]);    })
+            .y0(newYScale(0))
+            .y1(function(d) {   return newYScale(d[1]);    }
+        )
+    );
+
+    d3.select(`#${divIdPrefix}-forecast-data`)
         .selectAll("path")
         .attr("d", d3.area()
             .x(function(d) {    return distributionPlotParams.xScale[plotID](d[0]);    })
@@ -228,7 +294,7 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
         distributionPlotParams.updatePlotID();
 
         var xScale = d3.scaleLinear()
-                        .domain(d3.extent(data, d => d[stateVariable]))
+                        .domain([d3.min(data, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])), d3.max(data, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))])
                         .range([0, distributionPlotParams.plotWidth])
                         .nice();
 
@@ -239,19 +305,22 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
 
         // var n = data.length;
         // var bins = d3.histogram().domain(xScale.domain()).thresholds(40)(data);
-        var density = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.map(d => d[stateVariable]));
+        const analysisDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.map(d => d[stateVariable]['analysis']));
+        const forecastDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.map(d => d[stateVariable]['forecast']));
 
-        console.log(density);
+        // console.log(analysisDensity);
+        // console.log(forecastDensity);
 
-        d3.select(`#${divIdPrefix}-data`)
+        d3.select(`#${divIdPrefix}-analysis-data`)
             .attr("clip-path", `url(#${divIdPrefix}-clip)`)
             .selectAll("path")
-            .data([density])
+            .data([analysisDensity])
             .join(
                 function enter(enter) {
                     enter.append("path")
-                        .attr("fill", "steelblue")
+                        .attr("fill", "#1f78b4")    // blue
                         .attr("stroke-width", 0)
+                        .style("opacity", 0.5)
                         .attr("d", d3.area()
                                     .x(function(d) {    return xScale(d[0]);    })
                                     .y0(distributionPlotParams.yScale(0))
@@ -259,9 +328,7 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
                         );
                 },
                 function update(update) {
-                    update.attr("fill", "steelblue")
-                        .attr("stroke-width", 0)
-                        .transition()
+                    update.transition()
                         .duration(200)
                         .attr("d", d3.area()
                                     .x(function(d) {    return xScale(d[0]);    })
@@ -270,8 +337,34 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
                         );
                 }
             )
-            
 
+        d3.select(`#${divIdPrefix}-forecast-data`)
+            .attr("clip-path", `url(#${divIdPrefix}-clip)`)
+            .selectAll("path")
+            .data([forecastDensity])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("fill", "#33a02c")    // green
+                        .attr("stroke-width", 0)
+                        .style("opacity", 0.5)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return xScale(d[0]);    })
+                                    .y0(distributionPlotParams.yScale(0))
+                                    .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return xScale(d[0]);    })
+                                    .y0(distributionPlotParams.yScale(0))
+                                    .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
+                        );
+                }
+            )
+        
         d3.select(`#${divIdPrefix}-text`)
             .text(`LinkID: ${linkID} from (lon, lat) to (lon, lat)`);
     });
