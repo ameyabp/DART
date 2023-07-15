@@ -1,5 +1,6 @@
 import { setupBaseMap } from './baseMap.js';
 import { setupDistributionPlots } from './distribution_plot.js';
+import { setupHydrographPlots } from './hydrograph.js';
 import { drawMapData } from './render.js';
 
 class uiParameters {
@@ -183,6 +184,7 @@ async function init() {
     // draw visualization scaffolds
     const baseMapParams = await setupBaseMap();
     const distributionPlotParams =  await setupDistributionPlots();
+    await setupHydrographPlots();
 
     const uiParams = new uiParameters(baseMapParams.tooltip, baseMapParams.path);
 
