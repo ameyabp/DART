@@ -1,5 +1,6 @@
 import { setupBaseMap } from './baseMap.js';
 import { setupDistributionPlots } from './distribution_plot.js';
+import { getJSDateObjectFromTimestamp } from './helper.js';
 import { setupHydrographPlots } from './hydrograph.js';
 import { drawMapData } from './render.js';
 
@@ -9,14 +10,12 @@ class uiParameters {
         this.path = path;
     }
 
-    init(defaultParameters, distributionPlotParams) {
+    init(defaultParameters) {
         this.stateVariable = defaultParameters.stateVariable;
         this.timestamp = defaultParameters.timestamp;
         this.aggregation = defaultParameters.aggregation;
         this.daStage = defaultParameters.daStage;
         this.inflation = defaultParameters.inflation;
-
-        this.distributionPlotParams = distributionPlotParams;
 
         this.render();
     }
@@ -113,15 +112,7 @@ async function setupControlPanel(visParameters) {
                                             })[0].value;
 
         // wire up timeslider
-        // sample timestamp - 2022101400
-        data.timestamps = data.timestamps.map(function(d) {
-            return new Date(
-                d.substring(0,4),   // year
-                d.substring(4,6),    // month
-                d.substring(6,8),   // day
-                d.substring(8)  // hours
-            )
-        });
+        data.timestamps = data.timestamps.map(getJSDateObjectFromTimestamp);
 
         const minTimestamp = d3.min(data.timestamps);
         defaultParameters['timestamp'] = `${minTimestamp.getFullYear()}${minTimestamp.getMonth() > 9 ? minTimestamp.getMonth() : '0'+minTimestamp.getMonth()}${minTimestamp.getDate() > 9 ? minTimestamp.getDate() : '0'+minTimestamp.getDate()}${minTimestamp.getHours() > 9 ? minTimestamp.getHours() : '0'+minTimestamp.getHours()}`;
@@ -183,7 +174,7 @@ async function setupControlPanel(visParameters) {
 async function init() {
     // draw visualization scaffolds
     const baseMapParams = await setupBaseMap();
-    const distributionPlotParams =  await setupDistributionPlots();
+    await setupDistributionPlots();
     await setupHydrographPlots();
 
     const uiParams = new uiParameters(baseMapParams.tooltip, baseMapParams.path);
@@ -191,8 +182,7 @@ async function init() {
     // setup UI elements
     const defaultParameters = await setupControlPanel(uiParams);
 
-    uiParams.init(defaultParameters, distributionPlotParams);
-    // drawDistribution(1, visParameters.timestamp, visParameters.daStage, visParameters.colorEncodingStateVariable, distributionPlotParams);
+    uiParams.init(defaultParameters);
 }
 
 init();

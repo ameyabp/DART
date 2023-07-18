@@ -16,6 +16,7 @@ class hydrographPlotParams {
     static axesTickLabelFontSize = 10;
 
     static xScale = null;
+    static yAxis = null;
 
     static strokeWidth = 2;
 
@@ -36,6 +37,10 @@ class hydrographPlotParams {
 
     static setHorizontalScale(scale) {
         this.xScale = scale;
+    }
+
+    static setVerticalAxis(axis) {
+        this.yAxis = axis;
     }
 
     static legend = [
@@ -94,7 +99,19 @@ export async function setupHydrographPlots() {
                     .attr("text-anchor", "middle")
                     .attr("alignment-baseline", "hanging")
                     .attr("transform", `rotate(-90)`);
+        
+        var yScale = d3.scaleLinear()
+                    .domain([0, 1])
+                    .range([hydrographPlotParams.plotHeight, 0])
+                    .nice();
 
+        var yAxis = d3.axisLeft(yScale)
+                        .ticks(5);
+
+        d3.select('#hydrograph-yAxis').call(yAxis);
+
+        hydrographPlotParams.setVerticalAxis(yAxis);
+        
         // setup x axis
         hydrographSvg.append("g")
                     .attr("id", `hydrograph-xAxis`)
@@ -138,6 +155,16 @@ export async function setupHydrographPlots() {
                     .append("g")
                     .attr("id", `hydrograph-gridlines`)
                     .attr("clip-path", `url(#hydrograph-clip)`)
+                    .selectAll("line")
+                    .data(yScale.ticks(), d => d)
+                    .enter()
+                        .append("line")
+                        .attr("x1", 0)
+                        .attr("x2", hydrographPlotParams.plotWidth)
+                        .attr("y1", d => yScale(d))
+                        .attr("y2", d => yScale(d))
+                        .style("stroke", "grey")
+                        .style("opacity", 0.2);
 
         // data area
         hydrographSvg.select("#hydrograph-plot")
@@ -211,6 +238,7 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
     }).then(function(data) {
         console.log(data);
 
+        // recompute and rerender Y axis
         var yScale = null;
         if ('observation' in data.data[0]) {
             yScale = d3.scaleLinear()
@@ -225,11 +253,9 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                         .nice();
         }
 
-        var yAxis = d3.axisLeft(yScale)
-                        .ticks(5);
+        d3.select('#hydrograph-yAxis').call(hydrographPlotParams.yAxis.scale(yScale));
 
-        d3.select('#hydrograph-yAxis').call(yAxis);
-
+        // recompute and rerender horizontal gridlines
         d3.select('#hydrograph-gridlines')
             .selectAll("line")
             .data(yScale.ticks(), d => d)
@@ -253,6 +279,7 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                 }
             )
 
+        // render data
         d3.select('#hydrograph-forecast-data')
             .selectAll("path")
             .data([data.data])
@@ -335,6 +362,7 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                 .remove();
         }
 
+        // render textual information
         d3.select('#hydrograph-text')
             .text(`FeatureID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`)
     });

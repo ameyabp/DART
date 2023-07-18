@@ -67,7 +67,6 @@ class Observations:
             line = f.readline()
 
         # TODO: Account for multiple observations from the same location/gauge
-        print(len(self.observedLinkIDs))
 
     def getHydrographData(self, linkID, aggregation):
         hydrographData = {}

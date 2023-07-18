@@ -95,6 +95,18 @@ function setupDistributionPlot(id) {
                     .attr("text-anchor", "middle")
                     .attr("alignment-baseline", "hanging")
                     .attr("transform", `rotate(-90)`);
+    
+    var yScale = d3.scaleLinear()
+                    .domain([0, 1])
+                    .range([distributionPlotParams.plotHeight, 0])
+                    .nice();
+    
+    var yAxis = d3.axisLeft(yScale)
+        .ticks(5);
+
+    d3.select(`#${divIdPrefix}-yAxis`).call(yAxis);
+
+    distributionPlotParams.setVerticalAxis(yScale, yAxis);
 
     // setup x axis
     distributionSvg.append("g")
@@ -141,6 +153,16 @@ function setupDistributionPlot(id) {
                     .append("g")
                     .attr("id", `${divIdPrefix}-gridlines`)
                     .attr("clip-path", `url(#${divIdPrefix}-clip)`)
+                    .selectAll("line")
+                    .data(yScale.ticks(), d => d)
+                    .enter()
+                        .append("line")
+                        .attr("x1", 0)
+                        .attr("x2", distributionPlotParams.plotWidth)
+                        .attr("y1", d => yScale(d))
+                        .attr("y2", d => yScale(d))
+                        .style("stroke", "grey")
+                        .style("opacity", 0.2)
 
     // data area
     distributionSvg.select(`#${divIdPrefix}-plot`)
@@ -206,25 +228,25 @@ function setupDistributionPlot(id) {
 
 function zoomDistributionPlot(event, plotID) {
     const divIdPrefix = `distribution${plotID}`
-    var newYScale = event.transform.rescaleY(distributionPlotParams.yScale);
+    var yScale = event.transform.rescaleY(distributionPlotParams.yScale);
 
     // render zoomed vertical axis
     d3.select(`#${divIdPrefix}-yAxis`)
-        .call(distributionPlotParams.yAxis.scale(newYScale));
+        .call(distributionPlotParams.yAxis.scale(yScale));
 
     // render zoomed gridlines
     d3.select(`#${divIdPrefix}-gridlines`)
         .selectAll("line")
-        .attr("y1", d => newYScale(d))
-        .attr("y2", d => newYScale(d))
+        .attr("y1", d => yScale(d))
+        .attr("y2", d => yScale(d))
 
     // render zoomed data
     d3.select(`#${divIdPrefix}-analysis-data`)
         .selectAll("path")
         .attr("d", d3.area()
             .x(function(d) {    return distributionPlotParams.xScale[plotID](d[0]);    })
-            .y0(newYScale(0))
-            .y1(function(d) {   return newYScale(d[1]);    }
+            .y0(yScale(0))
+            .y1(function(d) {   return yScale(d[1]);    }
         )
     );
 
@@ -232,8 +254,8 @@ function zoomDistributionPlot(event, plotID) {
         .selectAll("path")
         .attr("d", d3.area()
             .x(function(d) {    return distributionPlotParams.xScale[plotID](d[0]);    })
-            .y0(newYScale(0))
-            .y1(function(d) {   return newYScale(d[1]);    }
+            .y0(yScale(0))
+            .y1(function(d) {   return yScale(d[1]);    }
         )
     );
 }
@@ -246,8 +268,6 @@ export async function setupDistributionPlots() {
     // at two different locations, at the same time stamp
     setupDistributionPlot(1);
     setupDistributionPlot(2);
-
-    return null;
 }
 
 export async function drawDistribution(linkID, timestamp, stateVariable) {
@@ -269,6 +289,7 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
         const divIdPrefix = `distribution${distributionPlotID}`;
         distributionPlotParams.updatePlotID();
 
+        // recompute and rerender X axis
         var xScale = d3.scaleLinear()
                         .domain([d3.min(data.ensembleData, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])), d3.max(data.ensembleData, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))])
                         .range([0, distributionPlotParams.plotWidth])
@@ -288,18 +309,16 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
         // console.log(forecastDensity);
         const distributionSvg = d3.select(`#${divIdPrefix}-svg`);
 
+        // recompute and rerender Y axis
         var yScale = d3.scaleLinear()
                 .domain(d3.extent(analysisDensity.concat(forecastDensity), d => d[1]))
                 .range([distributionPlotParams.plotHeight, 0])
                 .nice();
 
-        var yAxis = d3.axisLeft(yScale)
-            .ticks(5);
+        d3.select(`#${divIdPrefix}-yAxis`)
+            .call(distributionPlotParams.yAxis.scale(yScale));
 
-        d3.select(`#${divIdPrefix}-yAxis`).call(yAxis);
-
-        distributionPlotParams.setVerticalAxis(yScale, yAxis);
-
+        // recompute and rerender horizontal gridlines
         distributionSvg.select(`#${divIdPrefix}-gridlines`)
                     .selectAll("line")
                     .data(yScale.ticks(), d => d)
@@ -323,6 +342,7 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
                         }
                     );
 
+        // render data
         d3.select(`#${divIdPrefix}-analysis-data`)
             .attr("clip-path", `url(#${divIdPrefix}-clip)`)
             .selectAll("path")
@@ -335,8 +355,8 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
                         .style("opacity", 0.5)
                         .attr("d", d3.area()
                                     .x(function(d) {    return xScale(d[0]);    })
-                                    .y0(distributionPlotParams.yScale(0))
-                                    .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
+                                    .y0(yScale(0))
+                                    .y1(function(d) {   return yScale(d[1]);    })
                         );
                 },
                 function update(update) {
@@ -344,8 +364,8 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
                         .duration(200)
                         .attr("d", d3.area()
                                     .x(function(d) {    return xScale(d[0]);    })
-                                    .y0(distributionPlotParams.yScale(0))
-                                    .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
+                                    .y0(yScale(0))
+                                    .y1(function(d) {   return yScale(d[1]);    })
                         );
                 }
             )
@@ -362,8 +382,8 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
                         .style("opacity", 0.5)
                         .attr("d", d3.area()
                                     .x(function(d) {    return xScale(d[0]);    })
-                                    .y0(distributionPlotParams.yScale(0))
-                                    .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
+                                    .y0(yScale(0))
+                                    .y1(function(d) {   return yScale(d[1]);    })
                         );
                 },
                 function update(update) {
@@ -371,12 +391,13 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
                         .duration(200)
                         .attr("d", d3.area()
                                     .x(function(d) {    return xScale(d[0]);    })
-                                    .y0(distributionPlotParams.yScale(0))
-                                    .y1(function(d) {   return distributionPlotParams.yScale(d[1]);    })
+                                    .y0(yScale(0))
+                                    .y1(function(d) {   return yScale(d[1]);    })
                         );
                 }
             )
         
+        // render textual information
         d3.select(`#${divIdPrefix}-text`)
             .text(`FeatureID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`);
     });
