@@ -1,5 +1,6 @@
 import os
 import json
+import math
 import argparse
 import functools
 import numpy as np
@@ -67,6 +68,7 @@ class Observations:
             line = f.readline()
 
         # TODO: Account for multiple observations from the same location/gauge
+        f.close()
 
     def getHydrographData(self, linkID, aggregation, stateVariable):
         hydrographData = {}
@@ -107,6 +109,34 @@ class Observations:
                 hydrographData['data'].append(data)
 
         return hydrographData
+    
+    def getGaugeLocations(self):
+        self.gaugeLocations = []
+        f = open(os.path.join(self.modelFilesPath, self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}'), 'r')
+
+        readLoc = False
+        idx = 0
+
+        line = f.readline()
+        while line != '':
+            if readLoc:
+                coordinates = line.split()
+                self.gaugeLocations.append([
+                    float(coordinates[0]) * 180 / math.pi,
+                    float(coordinates[1]) * 180 / math.pi
+                ])
+                readLoc = False
+
+            if 'loc3d\n' in line:
+                readLoc = True
+
+            idx += 1
+            line = f.readline()
+
+        # TODO: Account for multiple observations from the same location/gauge
+        f.close()
+
+        return self.gaugeLocations
     
 class Ensemble:
     def __init__(self, modelFilesPath, rlData):
@@ -307,5 +337,12 @@ if __name__=='__main__':
             return json.dumps(hydrographData)
         else:
             print('Expected POST method, but received ' + request.method)
+
+    @app.route('/getGaugeLocations', methods=['GET'])
+    def getGaugeLocations():
+        if request.method == 'GET':
+            return json.dumps(observations.getGaugeLocations())
+        else:
+            print('Expected GET method, but received ' + request.method)
 
     app.run(host='127.0.0.1', port=8000, debug=True, use_evalex=False, use_reloader=True)

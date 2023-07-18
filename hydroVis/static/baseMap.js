@@ -350,9 +350,14 @@ export async function setupBaseMap() {
         .datum(topojson.mesh(states_data, states_data.objects.states, function(a,b) {   return a !== b  }))
         .attr("d", path);
 
-    // data group
+    // hydro gauge data
+    svgMap.append("g")
+        .attr("id", "gauge-locations-data");
+
+    // hydro data group
     svgMap.append("g")
             .attr("id", "wrf-hydro-data");
+
 
     var axes = setupAxes(projection, sizes);
 
@@ -389,7 +394,44 @@ export async function setupBaseMap() {
 
     return {
         path: path,
+        projection: projection,
         tooltip: tooltip,
         ...sizes
     };
+}
+
+export function drawGaugeLocations(projection, showGaugeLocations) {
+    d3.json('/getGaugeLocations',
+    {
+        method: 'GET',
+        headers: {
+            'Content-type': 'application/json; charset=UTF-8'
+        }
+    })
+    .then(function(data) {
+
+        if (showGaugeLocations) {
+            d3.select("#gauge-locations-data")
+                .selectAll("circle")
+                .data(data)
+                .enter()
+                    .append("circle")
+                    .attr("cx", function(d) {
+                        return projection([d[0], d[1]])[0];
+                    })
+                    .attr("cy", function(d) {
+                        return projection([d[0], d[1]])[1];
+                    })
+                    .attr("r", 2)
+                    .attr("stroke-width", 0)
+                    .attr("stroke", "black")
+                    .style("fill", "#e31a1c")
+                    .style("opacity", 0.5);
+        }
+        else {
+            d3.select("#gauge-locations-data")
+                .selectAll("circle")
+                .remove();
+        }
+    })
 }

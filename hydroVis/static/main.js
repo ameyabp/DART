@@ -1,13 +1,14 @@
-import { setupBaseMap } from './baseMap.js';
+import { drawGaugeLocations, setupBaseMap } from './baseMap.js';
 import { setupDistributionPlots } from './distribution_plot.js';
 import { getJSDateObjectFromTimestamp } from './helper.js';
 import { setupHydrographPlots } from './hydrograph.js';
 import { drawMapData } from './render.js';
 
 class uiParameters {
-    constructor(tooltip, path) {
+    constructor(tooltip, path, projection) {
         this.tooltip = tooltip;
         this.path = path;
+        this.projection = projection;
     }
 
     init(defaultParameters) {
@@ -166,6 +167,17 @@ async function setupControlPanel(visParameters) {
                                             .filter(function(d) {   
                                                 return d.checked;
                                             })[0].value;
+
+        // wire up gauge location checkbox
+        d3.select("#gaugeLoc")
+            .on("change", function() {
+                if (d3.select(this).property("checked")) {
+                    drawGaugeLocations(visParameters.projection, true);
+                }
+                else {
+                    drawGaugeLocations(visParameters.projection, false);
+                }
+            });
     });
 
     return defaultParameters;
@@ -177,7 +189,7 @@ async function init() {
     await setupDistributionPlots();
     await setupHydrographPlots();
 
-    const uiParams = new uiParameters(baseMapParams.tooltip, baseMapParams.path);
+    const uiParams = new uiParameters(baseMapParams.tooltip, baseMapParams.path, baseMapParams.projection);
 
     // setup UI elements
     const defaultParameters = await setupControlPanel(uiParams);
