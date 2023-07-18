@@ -1,16 +1,6 @@
 import { drawDistribution } from "./distribution_plot.js";
 import { drawHydrograph } from "./hydrograph.js";
-
-function getColorScale(data) {
-    return d3.scaleSequential(d3.interpolateRainbow)
-                .domain(data);
-}
-
-function getSizeScale(data) {
-    return d3.scaleLinear()
-                .domain(data)
-                .range([0.5, 10])
-}
+import { getMapColorScale, getMapSizeScale, generateLegendTicks } from "./baseMap.js";
 
 export async function drawMapData(tooltip, path, timestamp, aggregation, daStage, stateVariable, inflation=null) {
 
@@ -31,8 +21,8 @@ export async function drawMapData(tooltip, path, timestamp, aggregation, daStage
     .then(function(wrf_hydro_data) {
         console.log(wrf_hydro_data);
 
-        var colorScale = getColorScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
-        var sizeScale = getSizeScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
+        var colorScale = getMapColorScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
+        var sizeScale = getMapSizeScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
 
         var flow_data = d3.select("#wrf-hydro-data")
                             .selectAll("path")
@@ -106,5 +96,7 @@ export async function drawMapData(tooltip, path, timestamp, aggregation, daStage
                                         });
                                 }
                             )
+
+        generateLegendTicks(wrf_hydro_data.map(d => d[stateVariable]));
     })
 }

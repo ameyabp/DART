@@ -329,6 +329,11 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                     }
                 )
         }
+        else {
+            d3.select("#hydrograph-observation-data")
+                .selectAll("path")
+                .remove();
+        }
 
         d3.select('#hydrograph-text')
             .text(`FeatureID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`)

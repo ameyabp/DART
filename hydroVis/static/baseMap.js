@@ -11,6 +11,76 @@ const mapAxesLabelFontSize = 15;
 // specifed as a percentage of the data bounding box width and height
 const projectionExtentBboxPadding = 20;
 
+export function getMapColorScale(data) {
+    return d3.scaleSequential(d3.interpolateWarm)
+                .domain(data);
+}
+
+export function getMapSizeScale(data) {
+    return d3.scaleLinear()
+                .domain(data)
+                .range([0.5, 10])
+}
+
+const legendRectWidth = 0.5
+
+function generateLegendRects() {
+    var legend = []
+    for (var i=0; i<256; i++) {
+        const rect = {
+            x: i * legendRectWidth,
+            y: 0,
+            width: legendRectWidth,
+            height: 5 + 20*i/256,
+            color: d3.interpolateWarm(i/256)
+        }
+        legend.push(rect);
+    }
+
+    return legend
+}
+
+export function generateLegendTicks(data, numTicks=2) {
+    // console.log(d3.min(data), d3.max(data));
+    const min = Math.round(d3.min(data) * 100) / 100;
+    const max = Math.round(d3.max(data) * 100) / 100;
+
+    var ticks = []
+    for (var i=0; i<=numTicks; i++) {
+        const tick = {
+            x: (legendRectWidth * 256) * i/numTicks,
+            y1: 0,
+            y2: 25,
+            label: min + (max-min) * i/numTicks
+        }
+        ticks.push(tick);
+    }
+
+    d3.select("#mapLegend")
+        .selectAll("text")
+        .data(ticks)
+        .enter()
+            .append("text")
+            .text(function(d) { return d.label; })
+            .attr("x", function(d) {  return d.x;   })
+            .attr("y", function(d) {    return d.y1-5; })
+            .attr("text-anchor", "middle")
+            .attr("alignment-baseline", "baseline")
+            .style("font-size", 10);
+
+    d3.select("#mapLegend")
+        .selectAll("line")
+        .data(ticks)
+        .enter()
+            .append("line")
+            .attr("x1", function(d) {    return d.x; })
+            .attr("y1", function(d) {    return d.y1; })
+            .attr("x2", function(d) {    return d.x; })
+            .attr("y2", function(d) {    return d.y2; })
+            .attr("stroke-width", 1)
+            .attr("stroke", "black");
+}
+
 function setupAxes(projection, sizes) {
     // draw rects to clip map area and render axes on them
     const yRect = d3.select("#geoMap-svg")
@@ -290,6 +360,22 @@ export async function setupBaseMap() {
     }
 
     const tooltip = setupTooltip(viewportWidth, viewportHeight);
+
+    // legend
+    d3.select("#geoMap-svg")
+        .append("g")
+        .attr("id", "mapLegend")
+        .attr("transform", `translate(${viewportWidth * 0.85}, ${viewportHeight * 0.1})`)
+        .selectAll("rect")
+        .data(generateLegendRects())
+        .enter()
+            .append("rect")
+            .attr("x", function(d) {    return d.x; })
+            .attr("y", function(d) {    return d.y; })
+            .attr("width", function(d) {    return d.width; })
+            .attr("height", function(d) {    return d.height; })
+            .style("stroke-width", 0)
+            .style("fill", function(d) {    return d.color; })
 
     return {
         path: path,
