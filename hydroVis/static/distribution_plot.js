@@ -400,7 +400,7 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
         
         // render textual information
         d3.select(`#${divIdPrefix}-text`)
-            .text(`FeatureID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`);
+            .text(`Link ID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`);
 
         // update Y axis label
         d3.select(`#${divIdPrefix}-yAxis-label`)

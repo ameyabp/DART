@@ -84,3 +84,16 @@ export function getJSDateObjectFromTimestamp(timestampString) {
         timestampString.substring(8)  // hours
     );
 }
+
+export const wrfHydroStateVariables = {
+    qlink1: {
+        commonName: 'Streamflow',
+        units: 'cubic meter/second',
+        description: 'Amount of water flow per unit time'
+    },
+    z_gwsubbas: {
+        commonName: 'Bucket',
+        units: 'meter',
+        description: 'Elevation of water in the basin or bucket'
+    }
+}

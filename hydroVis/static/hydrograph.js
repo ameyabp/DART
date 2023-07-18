@@ -364,7 +364,7 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
 
         // render textual information
         d3.select('#hydrograph-text')
-            .text(`FeatureID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`)
+            .text(`Link ID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`)
 
         // relabel y axis
         d3.select("#hydrograph-yAxis-label")

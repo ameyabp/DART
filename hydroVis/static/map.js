@@ -1,4 +1,4 @@
-import { setupTooltip } from './helper.js';
+import { setupTooltip, wrfHydroStateVariables } from './helper.js';
 import { drawDistribution } from "./distribution_plot.js";
 import { drawHydrograph } from "./hydrograph.js";
 
@@ -63,6 +63,7 @@ class mapPlotParams {
     static legendNumTicks = 3;
     static legendTickHeight = 25;
     static legendTickFontSize = 12;
+    static legendTitleFontSize = 15;
 
     static generateLegendRects() {
         var legend = []
@@ -79,7 +80,7 @@ class mapPlotParams {
         return legend;
     }
 
-    static generateLegendTicks(data) {
+    static generateLegendTicks(data, stateVariable) {
         const min = Math.round(d3.min(data) * 100) / 100;
         const max = Math.round(d3.max(data) * 100) / 100;
 
@@ -89,10 +90,34 @@ class mapPlotParams {
                 x: (this.legendRectWidth * this.legendRectCount) * i/(this.legendNumTicks-1),
                 y1: 0,
                 y2: this.legendTickHeight,
-                label: min + (max-min) * i/(this.legendNumTicks-1)
+                label: min + (max-min) * i/(this.legendNumTicks-1),
+                fontSize: this.legendTickFontSize
             }
             ticks.push(tick);
         }
+
+        // ticks
+        d3.select("#mapLegend")
+            .selectAll("line")
+            .data(ticks, d => d.label)
+            .join(
+                function enter(enter) {
+                    enter.append("line")
+                        .attr("x1", function(d) {    return d.x; })
+                        .attr("y1", function(d) {    return d.y1; })
+                        .attr("x2", function(d) {    return d.x; })
+                        .attr("y2", function(d) {    return d.y2; })
+                        .attr("stroke-width", 1)
+                        .attr("stroke", "black");
+                }
+            );
+
+        ticks.push({
+            x: (this.legendRectWidth * this.legendRectCount) / 2,
+            y1: -20,
+            label: `${wrfHydroStateVariables[stateVariable].commonName} in ${wrfHydroStateVariables[stateVariable].units}`,
+            fontSize: this.legendTitleFontSize
+        });
 
         const legendTickFontSize = this.legendTickFontSize;
 
@@ -108,28 +133,13 @@ class mapPlotParams {
                         .attr("y", function(d) {    return d.y1-5; })
                         .attr("text-anchor", "middle")
                         .attr("alignment-baseline", "baseline")
-                        .attr("font-size", legendTickFontSize); // do not access this variable using 'this', it defaults to the d3 text element
+                        .attr("font-size", function(d) {    return d.fontSize;  }); // do not access this variable using 'this', it defaults to the d3 text element
                 },
                 function update(update) {
                     update.text(function(d) { return d.label; });
                 }
             );
         
-        // ticks
-        d3.select("#mapLegend")
-            .selectAll("line")
-            .data(ticks, d => d.label)
-            .join(
-                function enter(enter) {
-                    enter.append("line")
-                        .attr("x1", function(d) {    return d.x; })
-                        .attr("y1", function(d) {    return d.y1; })
-                        .attr("x2", function(d) {    return d.x; })
-                        .attr("y2", function(d) {    return d.y2; })
-                        .attr("stroke-width", 1)
-                        .attr("stroke", "black");
-                }
-            );         
     }
 }
 
@@ -533,7 +543,7 @@ export async function drawMapData(timestamp, aggregation, daStage, stateVariable
                                 }
                             )
 
-        mapPlotParams.generateLegendTicks(wrf_hydro_data.map(d => d[stateVariable]));
+        mapPlotParams.generateLegendTicks(wrf_hydro_data.map(d => d[stateVariable]), stateVariable);
     })
 }
 

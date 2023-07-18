@@ -1,6 +1,6 @@
 import { setupBaseMap, drawMapData, drawGaugeLocations } from './map.js';
 import { setupDistributionPlots } from './distribution_plot.js';
-import { getJSDateObjectFromTimestamp } from './helper.js';
+import { getJSDateObjectFromTimestamp, wrfHydroStateVariables } from './helper.js';
 import { setupHydrographPlots } from './hydrograph.js';
 
 class uiParameters {
@@ -76,7 +76,9 @@ async function setupControlPanel(visParameters) {
             .data(data.stateVariables)
             .enter()
                 .append("option")
-                .text(function(d) { return d; })
+                .text(function(d) {
+                    return wrfHydroStateVariables[d].commonName;
+                })
                 .attr("value", function(d) { return d })
                 .property("selected", function(d) {
                     return d === data.stateVariables[0];   // qlink1
