@@ -95,17 +95,6 @@ export async function setupHydrographPlots() {
                     .attr("alignment-baseline", "hanging")
                     .attr("transform", `rotate(-90)`);
 
-        var yScale = d3.scaleLinear()
-                    .domain([0, 1])
-                    .range([hydrographPlotParams.plotHeight, 0])
-                    .nice();
-
-        var yAxis = d3.axisLeft(yScale)
-                    .ticks(5);
-
-        d3.select(`#hydrograph-yAxis`)
-            .call(yAxis);
-
         // setup x axis
         hydrographSvg.append("g")
                     .attr("id", `hydrograph-xAxis`)
@@ -149,16 +138,6 @@ export async function setupHydrographPlots() {
                     .append("g")
                     .attr("id", `hydrograph-gridlines`)
                     .attr("clip-path", `url(#hydrograph-clip)`)
-                    .selectAll("line")
-                    .data(yScale.ticks(), d => d)
-                    .enter()
-                        .append("line")
-                        .attr("x1", 0)
-                        .attr("x2", hydrographPlotParams.plotWidth)
-                        .attr("y1", d => yScale(d))
-                        .attr("y2", d => yScale(d))
-                        .style("stroke", "grey")
-                        .style("opacity", 0.2);
 
         // data area
         hydrographSvg.select("#hydrograph-plot")
@@ -250,6 +229,29 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                         .ticks(5);
 
         d3.select('#hydrograph-yAxis').call(yAxis);
+
+        d3.select('#hydrograph-gridlines')
+            .selectAll("line")
+            .data(yScale.ticks(), d => d)
+            .join(
+                function enter(enter) {
+                    enter.append("line")
+                        .attr("x1", 0)
+                        .attr("x2", hydrographPlotParams.plotWidth)
+                        .attr("y1", d => yScale(d))
+                        .attr("y2", d => yScale(d))
+                        .style("stroke", "grey")
+                        .style("opacity", 0.2);
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("x1", 0)
+                        .attr("x2", hydrographPlotParams.plotWidth)
+                        .attr("y1", d => yScale(d))
+                        .attr("y2", d => yScale(d))
+                }
+            )
 
         d3.select('#hydrograph-forecast-data')
             .selectAll("path")

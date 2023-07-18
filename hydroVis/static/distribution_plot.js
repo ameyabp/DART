@@ -96,19 +96,6 @@ function setupDistributionPlot(id) {
                     .attr("alignment-baseline", "hanging")
                     .attr("transform", `rotate(-90)`);
 
-    var yScale = d3.scaleLinear()
-                    .domain([0, 1])
-                    .range([distributionPlotParams.plotHeight, 0])
-                    .nice();
-
-    var yAxis = d3.axisLeft(yScale)
-                .ticks(5);
-
-    d3.select(`#${divIdPrefix}-yAxis`)
-        .call(yAxis);
-
-    distributionPlotParams.setVerticalAxis(yScale, yAxis);
-
     // setup x axis
     distributionSvg.append("g")
                 .attr("id", `${divIdPrefix}-xAxis`)
@@ -154,16 +141,6 @@ function setupDistributionPlot(id) {
                     .append("g")
                     .attr("id", `${divIdPrefix}-gridlines`)
                     .attr("clip-path", `url(#${divIdPrefix}-clip)`)
-                    .selectAll("line")
-                    .data(yScale.ticks(), d => d)
-                    .enter()
-                        .append("line")
-                        .attr("x1", 0)
-                        .attr("x2", distributionPlotParams.plotWidth)
-                        .attr("y1", d => yScale(d))
-                        .attr("y2", d => yScale(d))
-                        .style("stroke", "grey")
-                        .style("opacity", 0.2)
 
     // data area
     distributionSvg.select(`#${divIdPrefix}-plot`)
@@ -216,15 +193,15 @@ function setupDistributionPlot(id) {
                     .attr("alignment-baseline", "hanging")
 
     // zoom
-    var zoom = d3.zoom()
-                .scaleExtent([1,6])
-                .extent([[0, 0], [distributionPlotParams.plotWidth, distributionPlotParams.plotHeight]])
-                .translateExtent([[0, 0], [distributionPlotParams.plotWidth, distributionPlotParams.plotHeight]])
-                .on("zoom", function(event) {
-                    zoomDistributionPlot(event, id);
-                })
+    // var zoom = d3.zoom()
+    //             .scaleExtent([1,6])
+    //             .extent([[0, 0], [distributionPlotParams.plotWidth, distributionPlotParams.plotHeight]])
+    //             .translateExtent([[0, 0], [distributionPlotParams.plotWidth, distributionPlotParams.plotHeight]])
+    //             .on("zoom", function(event) {
+    //                 zoomDistributionPlot(event, id);
+    //             })
 
-    distributionSvg.call(zoom);
+    // distributionSvg.call(zoom);
 }
 
 function zoomDistributionPlot(event, plotID) {
@@ -309,6 +286,42 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
 
         // console.log(analysisDensity);
         // console.log(forecastDensity);
+        const distributionSvg = d3.select(`#${divIdPrefix}-svg`);
+
+        var yScale = d3.scaleLinear()
+                .domain(d3.extent(analysisDensity.concat(forecastDensity), d => d[1]))
+                .range([distributionPlotParams.plotHeight, 0])
+                .nice();
+
+        var yAxis = d3.axisLeft(yScale)
+            .ticks(5);
+
+        d3.select(`#${divIdPrefix}-yAxis`).call(yAxis);
+
+        distributionPlotParams.setVerticalAxis(yScale, yAxis);
+
+        distributionSvg.select(`#${divIdPrefix}-gridlines`)
+                    .selectAll("line")
+                    .data(yScale.ticks(), d => d)
+                    .join(
+                        function enter(enter) {
+                            enter.append("line")
+                                .attr("x1", 0)
+                                .attr("x2", distributionPlotParams.plotWidth)
+                                .attr("y1", d => yScale(d))
+                                .attr("y2", d => yScale(d))
+                                .style("stroke", "grey")
+                                .style("opacity", 0.2)
+                        },
+                        function update(update) {
+                            update.transition()
+                                .duration(200)
+                                .attr("x1", 0)
+                                .attr("x2", distributionPlotParams.plotWidth)
+                                .attr("y1", d => yScale(d))
+                                .attr("y2", d => yScale(d))
+                        }
+                    );
 
         d3.select(`#${divIdPrefix}-analysis-data`)
             .attr("clip-path", `url(#${divIdPrefix}-clip)`)

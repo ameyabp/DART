@@ -93,7 +93,6 @@ class Observations:
         hydrographData['data'] = []
 
         locationDataOffset = self.observedLinkIDs[linkID] if linkID in self.observedLinkIDs else -1
-        print(locationDataOffset)
 
         if locationDataOffset > 0:
             for timestamp in self.timestampList:
@@ -107,9 +106,6 @@ class Observations:
                 data['analysis'] = lines[locationDataOffset + analysisDataOffset].strip()
 
                 hydrographData['data'].append(data)
-                # print(data)
-
-                # break
 
         return hydrographData
     
