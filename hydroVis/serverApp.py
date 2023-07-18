@@ -40,6 +40,79 @@ class RouteLinkData:
             'centroid': self.centroid
         }
 
+class Observations:
+    def __init__(self, modelFilesPath, timestampList):
+        self.timestampList = timestampList
+        self.modelFilesPath = modelFilesPath
+        self.observedLinkIDs = {}
+
+        f = open(os.path.join(self.modelFilesPath, self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}'), 'r')
+
+        readLinkID = False
+        idx = 0
+
+        line = f.readline()
+        while line != '':
+        # for idx, line in enumerate(f.readline()):
+            if readLinkID:
+                linkID = -1 * int(line.strip())
+                assert linkID > 0
+                self.observedLinkIDs[linkID] = idx - 173   # TODO: Remove hardcoding
+                readLinkID = False
+
+            if 'kind\n' in line:
+                readLinkID = True
+
+            idx += 1
+            line = f.readline()
+
+        # TODO: Account for multiple observations from the same location/gauge
+        print(len(self.observedLinkIDs))
+
+    def getHydrographData(self, linkID, aggregation):
+        hydrographData = {}
+        hydrographData['linkID'] = linkID
+
+        # compute file line offsets from line number of ' OBS' string
+        observationDataOffset = 1
+
+        if aggregation == 'mean':
+            forecastDataOffset = 2
+            analysisDataOffset = 3
+            hydrographData['agg'] = aggregation
+        elif aggregation =='sd':
+            forecastDataOffset = 4
+            analysisDataOffset = 5
+            hydrographData['agg'] = aggregation
+        else:
+            # individual member - indexed starting from 1
+            forecastDataOffset = 2 * (int(aggregation)-1) + 6
+            analysisDataOffset = 2 * (int(aggregation)-1) + 7
+            hydrographData['agg'] = int(aggregation)
+
+        hydrographData['data'] = []
+
+        locationDataOffset = self.observedLinkIDs[linkID] if linkID in self.observedLinkIDs else -1
+        print(locationDataOffset)
+
+        if locationDataOffset > 0:
+            for timestamp in self.timestampList:
+                f = open(os.path.join(self.modelFilesPath, timestamp, f'obs_seq.final.{timestamp}'), 'r')
+                lines = f.readlines()
+
+                data = {}
+                data['timestamp'] = timestamp
+                data['observation'] = lines[locationDataOffset + observationDataOffset].strip()
+                data['forecast'] = lines[locationDataOffset + forecastDataOffset].strip()
+                data['analysis'] = lines[locationDataOffset + analysisDataOffset].strip()
+
+                hydrographData['data'].append(data)
+                # print(data)
+
+                # break
+
+        return hydrographData
+    
 class Ensemble:
     def __init__(self, modelFilesPath, rlData):
         # list of timestamps for the ensemble models 
@@ -55,10 +128,6 @@ class Ensemble:
         self.sampleOutputData = nc.Dataset(os.path.join(self.modelFilesPath, self.timestamps[0], netcdfFiles[0]))
         self.stateVariables = list(self.sampleOutputData.variables.keys())
         self.stateVariables.remove('time')
-        # priorInflationStateVariables = list(map(lambda x: x + '_inflation_prior', self.stateVariables))
-        # posteriorInflationStateVariables = list(map(lambda x: x + '_inflation_posterior', self.stateVariables))
-        # self.stateVariables.extend(priorInflationStateVariables)
-        # self.stateVariables.extend(posteriorInflationStateVariables)
 
         # routeLink data
         self.rl = rlData
@@ -69,6 +138,9 @@ class Ensemble:
             'numEnsembleModels': self.numEnsembleModels,
             'timestamps': self.timestamps
         }
+    
+    def getTimestamps(self):
+        return self.timestamps
     
     def getStateData(self, timestamp, aggregation, daStage, stateVariable, inflation=None):
         # load required forecast data from netcdf files to python data structures in main memory
@@ -112,7 +184,7 @@ class Ensemble:
         
         return renderData
     
-    def getEnsembleData(self, timestamp, daStage, stateVariable, linkID):
+    def getEnsembleData(self, timestamp, stateVariable, linkID):
         ensembleData = []
 
         # construct required netcdf file name
@@ -133,16 +205,45 @@ class Ensemble:
 
             ensembleData.append(dataPoint)
 
-        return ensembleData
+        return {
+            'lon': float(self.rl.lon[linkID]),
+            'lat': float(self.rl.lat[linkID]),
+            'ensembleData': ensembleData
+        }
+
+    def getHydrographData(self, linkID, stateVariable, aggregation, hydrographData):
+        if len(hydrographData['data']) == 0:
+            for timestamp in self.timestamps:
+                if aggregation == 'mean' or aggregation == 'sd':
+                    analysisFilename = f'analysis_{aggregation}.{timestamp}.nc'
+                    forecastFilename = f'preassim_{aggregation}.{timestamp}.nc'
+                else:
+                    analysisFilename = f'analysis_{aggregation.rjust(4, "0")}.{timestamp}.nc'
+                    forecastFilename = f'preassim_{aggregation.rjust(4, "0")}.{timestamp}.nc'
+
+                analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
+                forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+
+                hydrographData['data'].append({
+                    'timestamp': timestamp,
+                    'forecast': float(forecastData.variables[stateVariable][linkID].item()),
+                    'analysis': float(analysisData.variables[stateVariable][linkID].item())
+                })
+
+        hydrographData['lon'] = float(self.rl.lon[linkID])
+        hydrographData['lat'] = float(self.rl.lat[linkID])
+
+        return hydrographData
 
 if __name__=='__main__':
-    parser = argparse.ArgumentParser(prog="DARTVis - Visual Analysis Tool for Ensemble Forecast Models")
+    parser = argparse.ArgumentParser(prog="HydroVis - Visual Analysis Tool for DART Forecasting of Hydro Models")
     parser.add_argument('-f', '--modelFilesPath', required=True)
     parser.add_argument('-rl', '--routeLinkFilePath', required=True)
 
     args = parser.parse_args()
     rlData = RouteLinkData(args.routeLinkFilePath)
     ensemble = Ensemble(args.modelFilesPath, rlData)
+    observations = Observations(args.modelFilesPath, ensemble.timestamps)
     
     @app.route('/', methods=['GET'])
     def index():
@@ -170,6 +271,13 @@ if __name__=='__main__':
         else:
             print('Expected GET method, but received ' + request.method)
 
+    @app.route('/getTimestamps', methods=['GET'])
+    def getTimestamps():
+        if request.method == 'GET':
+            return json.dumps(ensemble.getTimestamps())
+        else:
+            print('Expected GET method, but received ' + request.method)
+
     @app.route('/getLonLatBoundingBox', methods=['GET'])
     def getLonLatBoundingBox():
         if request.method == 'GET':
@@ -182,12 +290,26 @@ if __name__=='__main__':
         if request.method == 'POST':
             query = json.loads(request.data)
             timestamp = query['timestamp']
-            daStage = query['daStage']
             stateVariable = query['stateVariable']
             linkID = query['linkID']
 
-            ensembleData = ensemble.getEnsembleData(timestamp, daStage, stateVariable, linkID)
+            ensembleData = ensemble.getEnsembleData(timestamp, stateVariable, linkID)
             return json.dumps(ensembleData)
+        else:
+            print('Expected POST method, but received ' + request.method)
+
+    @app.route('/getHydrographData', methods=['POST'])
+    def getHydrographData():
+        if request.method == 'POST':
+            query = json.loads(request.data)
+            linkID = query['linkID']
+            stateVariable = query['stateVariable']
+            aggregation = query['aggregation']
+
+            hydrographData = observations.getHydrographData(linkID, aggregation)
+            hydrographData = ensemble.getHydrographData(linkID, stateVariable, aggregation, hydrographData)
+            
+            return json.dumps(hydrographData)
         else:
             print('Expected POST method, but received ' + request.method)
 

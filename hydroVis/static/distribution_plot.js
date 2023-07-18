@@ -273,7 +273,7 @@ export async function setupDistributionPlots() {
     return null;
 }
 
-export async function drawDistribution(linkID, timestamp, daStage, stateVariable) {
+export async function drawDistribution(linkID, timestamp, stateVariable) {
     d3.json('/getEnsembleData',
     {
         method: 'POST',
@@ -282,7 +282,6 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
         },
         body: JSON.stringify({
                 timestamp: timestamp,
-                daStage: daStage,
                 stateVariable: stateVariable,
                 linkID: linkID
             })
@@ -294,7 +293,7 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
         distributionPlotParams.updatePlotID();
 
         var xScale = d3.scaleLinear()
-                        .domain([d3.min(data, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])), d3.max(data, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))])
+                        .domain([d3.min(data.ensembleData, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])), d3.max(data.ensembleData, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))])
                         .range([0, distributionPlotParams.plotWidth])
                         .nice();
 
@@ -305,8 +304,8 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
 
         // var n = data.length;
         // var bins = d3.histogram().domain(xScale.domain()).thresholds(40)(data);
-        const analysisDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.map(d => d[stateVariable]['analysis']));
-        const forecastDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.map(d => d[stateVariable]['forecast']));
+        const analysisDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['analysis']));
+        const forecastDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['forecast']));
 
         // console.log(analysisDensity);
         // console.log(forecastDensity);
@@ -366,7 +365,7 @@ export async function drawDistribution(linkID, timestamp, daStage, stateVariable
             )
         
         d3.select(`#${divIdPrefix}-text`)
-            .text(`LinkID: ${linkID} from (lon, lat) to (lon, lat)`);
+            .text(`FeatureID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`);
     });
 }
 

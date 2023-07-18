@@ -69,3 +69,12 @@ export function setupTooltip(vpWidth, vpHeight) {
     const tooltip = new Tooltip(tooltipDiv, setupTooltipContent, vpWidth, vpHeight);
     return tooltip;
 }
+
+export function getJSDateObjectFromTimestamp(timestampString) {
+    return new Date(
+        timestampString.substring(0,4),   // year
+        timestampString.substring(4,6),    // month
+        timestampString.substring(6,8),   // day
+        timestampString.substring(8)  // hours
+    );
+}

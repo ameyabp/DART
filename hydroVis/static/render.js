@@ -1,4 +1,5 @@
 import { drawDistribution } from "./distribution_plot.js";
+import { drawHydrograph } from "./hydrograph.js";
 
 function getColorScale(data) {
     return d3.scaleSequential(d3.interpolateRainbow)
@@ -67,7 +68,8 @@ export async function drawMapData(tooltip, path, timestamp, aggregation, daStage
                                             tooltip.hide();
                                         })
                                         .on("click", function(event, d) {
-                                            drawDistribution(d.linkID, timestamp, daStage, 'qlink1');
+                                            drawDistribution(d.linkID, timestamp, 'qlink1');
+                                            drawHydrograph(d.linkID, 'qlink1', aggregation);
                                         });
                                 },
                                 function update(update) {
@@ -99,7 +101,8 @@ export async function drawMapData(tooltip, path, timestamp, aggregation, daStage
                                             tooltip.hide();
                                         })
                                         .on("click", function(event, d) {
-                                            drawDistribution(d.linkID, timestamp, daStage, 'qlink1');
+                                            drawDistribution(d.linkID, timestamp, 'qlink1');
+                                            drawHydrograph(d.linkID, 'qlink1', aggregation);
                                         });
                                 }
                             )
