@@ -1,15 +1,10 @@
-import { drawGaugeLocations, setupBaseMap } from './baseMap.js';
+import { setupBaseMap, drawMapData, drawGaugeLocations } from './map.js';
 import { setupDistributionPlots } from './distribution_plot.js';
 import { getJSDateObjectFromTimestamp } from './helper.js';
 import { setupHydrographPlots } from './hydrograph.js';
-import { drawMapData } from './render.js';
 
 class uiParameters {
-    constructor(tooltip, path, projection) {
-        this.tooltip = tooltip;
-        this.path = path;
-        this.projection = projection;
-    }
+    constructor() {}
 
     init(defaultParameters) {
         this.stateVariable = defaultParameters.stateVariable;
@@ -57,7 +52,7 @@ class uiParameters {
     }
 
     render() {
-        drawMapData(this.tooltip, this.path, this.timestamp, this.aggregation, this.daStage, this.stateVariable, this.inflation);
+        drawMapData(this.timestamp, this.aggregation, this.daStage, this.stateVariable, this.inflation);
     }
 }
 
@@ -171,12 +166,7 @@ async function setupControlPanel(visParameters) {
         // wire up gauge location checkbox
         d3.select("#gaugeLoc")
             .on("change", function() {
-                if (d3.select(this).property("checked")) {
-                    drawGaugeLocations(visParameters.projection, true);
-                }
-                else {
-                    drawGaugeLocations(visParameters.projection, false);
-                }
+                drawGaugeLocations(d3.select(this).property("checked"));
             });
     });
 
@@ -185,15 +175,13 @@ async function setupControlPanel(visParameters) {
 
 async function init() {
     // draw visualization scaffolds
-    const baseMapParams = await setupBaseMap();
+    await setupBaseMap();
     await setupDistributionPlots();
     await setupHydrographPlots();
 
-    const uiParams = new uiParameters(baseMapParams.tooltip, baseMapParams.path, baseMapParams.projection);
-
     // setup UI elements
+    const uiParams = new uiParameters();
     const defaultParameters = await setupControlPanel(uiParams);
-
     uiParams.init(defaultParameters);
 }
 

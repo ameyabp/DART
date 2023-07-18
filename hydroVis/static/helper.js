@@ -61,9 +61,15 @@ export function setupTooltip(vpWidth, vpHeight) {
                         .attr("id", "tooltip-div");
 
     function setupTooltipContent(d) {
-        return "Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
-                d.line.coordinates[d.line.coordinates.length-1].map(x => x.toFixed(2)).join(', ') + 
-                "<br/>qlink1: " + d.qlink1 + "<br/>z_gwsubbas: " + d.z_gwsubbas;
+        if ('line' in d) {
+            return "Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
+                    d.line.coordinates[d.line.coordinates.length-1].map(x => x.toFixed(2)).join(', ') + 
+                    "<br/>qlink1: " + d.qlink1 + "<br/>z_gwsubbas: " + d.z_gwsubbas;
+        }
+        else {
+            const lon = (d[0] > 180) ? d[0] - 360 : ((d[0] < -180) ? d[0] + 360 : d[0]);
+            return "Gauge Location: <br/>(" + Math.round(lon * 100)/100 + ", " + Math.round(d[1] * 100)/100 + ")";
+        }
     }
 
     const tooltip = new Tooltip(tooltipDiv, setupTooltipContent, vpWidth, vpHeight);
