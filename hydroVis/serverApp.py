@@ -68,7 +68,7 @@ class Observations:
 
         # TODO: Account for multiple observations from the same location/gauge
 
-    def getHydrographData(self, linkID, aggregation):
+    def getHydrographData(self, linkID, aggregation, stateVariable):
         hydrographData = {}
         hydrographData['linkID'] = linkID
 
@@ -301,7 +301,7 @@ if __name__=='__main__':
             stateVariable = query['stateVariable']
             aggregation = query['aggregation']
 
-            hydrographData = observations.getHydrographData(linkID, aggregation)
+            hydrographData = observations.getHydrographData(linkID, aggregation, stateVariable)
             hydrographData = ensemble.getHydrographData(linkID, stateVariable, aggregation, hydrographData)
             
             return json.dumps(hydrographData)

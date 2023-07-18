@@ -58,8 +58,8 @@ export async function drawMapData(tooltip, path, timestamp, aggregation, daStage
                                             tooltip.hide();
                                         })
                                         .on("click", function(event, d) {
-                                            drawDistribution(d.linkID, timestamp, 'qlink1');
-                                            drawHydrograph(d.linkID, 'qlink1', aggregation);
+                                            drawDistribution(d.linkID, timestamp, stateVariable);
+                                            drawHydrograph(d.linkID, stateVariable, aggregation);
                                         });
                                 },
                                 function update(update) {
@@ -91,8 +91,8 @@ export async function drawMapData(tooltip, path, timestamp, aggregation, daStage
                                             tooltip.hide();
                                         })
                                         .on("click", function(event, d) {
-                                            drawDistribution(d.linkID, timestamp, 'qlink1');
-                                            drawHydrograph(d.linkID, 'qlink1', aggregation);
+                                            drawDistribution(d.linkID, timestamp, stateVariable);
+                                            drawHydrograph(d.linkID, stateVariable, aggregation);
                                         });
                                 }
                             )

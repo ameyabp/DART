@@ -1,6 +1,6 @@
 class distributionPlotParams {
     static leftMargin = 50;
-    static bottomMargin = 50;
+    static bottomMargin = 40;
     static topMargin = 20;
     static rightMargin = 10;
 
@@ -88,6 +88,7 @@ function setupDistributionPlot(id) {
                     .attr("transform", `translate(${distributionPlotParams.leftMargin}, ${distributionPlotParams.topMargin})`);
 
     distributionSvg.append("text")
+                    .attr("id", `${divIdPrefix}-yAxis-label`)
                     .text("Distribution")
                     .attr("x", -distributionPlotParams.topMargin-(distributionPlotParams.divHeight-distributionPlotParams.topMargin-distributionPlotParams.bottomMargin)/2)
                     .attr("y", 0)
@@ -400,6 +401,10 @@ export async function drawDistribution(linkID, timestamp, stateVariable) {
         // render textual information
         d3.select(`#${divIdPrefix}-text`)
             .text(`FeatureID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`);
+
+        // update Y axis label
+        d3.select(`#${divIdPrefix}-yAxis-label`)
+            .text(`Distribution of ${stateVariable}`);
     });
 }
 

@@ -2,7 +2,7 @@ import { getJSDateObjectFromTimestamp } from "./helper.js";
 
 class hydrographPlotParams {
     static leftMargin = 50;
-    static bottomMargin = 50;
+    static bottomMargin = 40;
     static topMargin = 20;
     static rightMargin = 10;
     
@@ -365,5 +365,9 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
         // render textual information
         d3.select('#hydrograph-text')
             .text(`FeatureID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`)
+
+        // relabel y axis
+        d3.select("#hydrograph-yAxis-label")
+            .text('qlink1');
     });
 }

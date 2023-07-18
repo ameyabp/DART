@@ -58,27 +58,36 @@ export function generateLegendTicks(data, numTicks=2) {
 
     d3.select("#mapLegend")
         .selectAll("text")
-        .data(ticks)
-        .enter()
-            .append("text")
-            .text(function(d) { return d.label; })
-            .attr("x", function(d) {  return d.x;   })
-            .attr("y", function(d) {    return d.y1-5; })
-            .attr("text-anchor", "middle")
-            .attr("alignment-baseline", "baseline")
-            .style("font-size", 10);
-
+        .data(ticks, d => d.label)
+        .join(
+            function enter(enter) {
+                enter.append("text")
+                    .text(function(d) { return d.label; })
+                    .attr("x", function(d) {  return d.x;   })
+                    .attr("y", function(d) {    return d.y1-5; })
+                    .attr("text-anchor", "middle")
+                    .attr("alignment-baseline", "baseline")
+                    .style("font-size", 10);
+            },
+            function update(update) {
+                update.text(function(d) { return d.label; });
+            }
+        )
+            
     d3.select("#mapLegend")
         .selectAll("line")
-        .data(ticks)
-        .enter()
-            .append("line")
-            .attr("x1", function(d) {    return d.x; })
-            .attr("y1", function(d) {    return d.y1; })
-            .attr("x2", function(d) {    return d.x; })
-            .attr("y2", function(d) {    return d.y2; })
-            .attr("stroke-width", 1)
-            .attr("stroke", "black");
+        .data(ticks, d => d.label)
+        .join(
+            function enter(enter) {
+                enter.append("line")
+                    .attr("x1", function(d) {    return d.x; })
+                    .attr("y1", function(d) {    return d.y1; })
+                    .attr("x2", function(d) {    return d.x; })
+                    .attr("y2", function(d) {    return d.y2; })
+                    .attr("stroke-width", 1)
+                    .attr("stroke", "black");
+            }
+        )            
 }
 
 function setupAxes(projection, sizes) {
@@ -376,6 +385,7 @@ export async function setupBaseMap() {
             .attr("height", function(d) {    return d.height; })
             .style("stroke-width", 0)
             .style("fill", function(d) {    return d.color; })
+            .style("opcaity", 1);
 
     return {
         path: path,
