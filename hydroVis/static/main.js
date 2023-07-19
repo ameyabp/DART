@@ -1,62 +1,52 @@
+import { uiParameters } from './uiParameters.js';
 import { setupBaseMap, drawMapData, drawGaugeLocations } from './map.js';
-import { setupDistributionPlots } from './distribution_plot.js';
+import { setupDistributionPlot, drawDistribution } from './distribution.js';
+import { setupHydrographPlots, drawHydrographStateVariable, drawHydrographInflation } from './hydrograph.js';
 import { getJSDateObjectFromTimestamp, wrfHydroStateVariables } from './helper.js';
-import { setupHydrographPlots } from './hydrograph.js';
 
-class uiParameters {
-    constructor() {}
-
-    init(defaultParameters) {
-        this.stateVariable = defaultParameters.stateVariable;
-        this.timestamp = defaultParameters.timestamp;
-        this.aggregation = defaultParameters.aggregation;
-        this.daStage = defaultParameters.daStage;
-        this.inflation = defaultParameters.inflation;
-
-        this.render();
-    }
-
-    updateTimestamp(timestamp) {
-        if (this.timestamp != timestamp) {
-            this.timestamp = timestamp;
-            this.render();
-        }
-    }
-
-    updateAggregation(aggregation) {
-        if (this.aggregation != aggregation) {
-            this.aggregation = aggregation;
-            this.render();
-        }
-    }
-
-    updateDaStage(daStage) {
-        if (this.daStage != daStage) {
-            this.daStage = daStage;
-            this.render();
-        }
-    }
-
-    updateStateVariable(stateVariable) {
-        if (this.stateVariable != stateVariable) {
-            this.stateVariable = stateVariable;
-            this.render();
-        }
-    }
-
-    updateInflation(inflation) {
-        if (this.inflation != inflation) {
-            this.inflation = inflation;
-            this.render();
-        }
-    }
-
-    render() {
-        drawMapData(this.timestamp, this.aggregation, this.daStage, this.stateVariable, this.inflation);
-    }
+function updateStateVariable(stateVariable) {
+    uiParameters.updateStateVariable(stateVariable);
+    // call all the relevant renderer functions
+    drawMapData();
+    drawDistribution();
+    drawHydrographStateVariable();
+    drawHydrographInflation();
 }
 
-async function setupControlPanel(visParameters) {
+function updateAggregation(aggregation) {
+    uiParameters.updateAggregation(aggregation);
+    // call all the relevant renderer functions
+    drawMapData();
+    drawHydrographStateVariable();
+}
+
+function updateDaStage(daStage) {
+    uiParameters.updateDaStage(daStage);
+    // call all the relevant renderer functions
+    drawMapData();
+}
+
+function updateInflation(inflation) {
+    uiParameters.updateInflation(inflation);
+    // call all the relevant renderer functions
+    drawMapData();
+    drawHydrographInflation();
+}
+
+function updateShowGaugeLocations(showGaugeLocations) {
+    uiParameters.updateShowGaugeLocations(showGaugeLocations);
+    // call all the relevant renderer functions
+    drawGaugeLocations();
+}
+
+function updateTimestamp(timestamp) {
+    uiParameters.updateTimestamp(timestamp);
+    // call all the relevant renderer functions
+    drawMapData();
+    drawDistribution();
+}
+
+async function setupControlPanel() {
     var defaultParameters = {};
 
     await d3.json('/getUIParameters',
@@ -70,7 +60,7 @@ async function setupControlPanel(visParameters) {
         // wire up stateVariable dropdown changes
         d3.select("#stateVariable-dropdown")
             .on("change", function() {
-                visParameters.updateStateVariable(this.value);
+                updateStateVariable(this.value);
             })
             .selectAll("option")
             .data(data.stateVariables)
@@ -93,14 +83,14 @@ async function setupControlPanel(visParameters) {
                     d3.select("#member")
                         .property("value", '');
 
-                    visParameters.updateAggregation(this.value);
+                    updateAggregation(this.value);
                 }
                 else {
                     // individual ensemble member selected
                     d3.selectAll("input[name='aggregation']")
                         .property("checked", false);
 
-                    visParameters.updateAggregation(+this.value);
+                    updateAggregation(+this.value);
                 }
             });
         defaultParameters['aggregation'] = d3.selectAll("input[name='aggregation']")
@@ -108,6 +98,34 @@ async function setupControlPanel(visParameters) {
                                             .filter(function(d) {   
                                                 return d.checked;
                                             })[0].value;
+
+        // wire up data assimilation phase change
+        d3.selectAll("input[name='daStage']")
+        .on("change", function() {
+            updateDaStage(this.value);
+        });
+        defaultParameters['daStage'] = d3.selectAll("input[name='daStage']")
+                                            .nodes()
+                                            .filter(function(d) {   
+                                                return d.checked;
+                                            })[0].value;
+
+        // wire up inflation change
+        d3.selectAll("input[name='inflation']")
+        .on("change", function() {
+            updateInflation(this.value === 'none' ? null : this.value);
+        });
+        defaultParameters['inflation'] = d3.selectAll("input[name='inflation']")
+                                            .nodes()
+                                            .filter(function(d) {   
+                                                return d.checked;
+                                            })[0].value;
+
+        // wire up gauge location checkbox
+        d3.select("#gaugeLoc")
+            .on("change", function() {
+                updateShowGaugeLocations(d3.select(this).property("checked"));
+            });
 
         // wire up timeslider
         data.timestamps = data.timestamps.map(getJSDateObjectFromTimestamp);
@@ -138,38 +156,10 @@ async function setupControlPanel(visParameters) {
                         })
                         .on('end', function(value) {
                             const newTimestamp = `${value.getFullYear()}${value.getMonth() > 9 ? value.getMonth() : '0'+value.getMonth()}${value.getDate() > 9 ? value.getDate() : '0'+value.getDate()}${value.getHours() > 9 ? value.getHours() : '0'+value.getHours()}`;
-                            visParameters.updateTimestamp(newTimestamp);
+                            updateTimestamp(newTimestamp);
                         });
         
         sliderDiv.call(slider);
-
-        // wire up data assimilation phase change
-        d3.selectAll("input[name='daStage']")
-        .on("change", function() {
-            visParameters.updateDaStage(this.value);
-        });
-        defaultParameters['daStage'] = d3.selectAll("input[name='daStage']")
-                                            .nodes()
-                                            .filter(function(d) {   
-                                                return d.checked;
-                                            })[0].value;
-
-        // wire up inflation change
-        d3.selectAll("input[name='inflation']")
-        .on("change", function() {
-            visParameters.updateInflation(this.value === 'none' ? null : this.value);
-        });
-        defaultParameters['inflation'] = d3.selectAll("input[name='inflation']")
-                                            .nodes()
-                                            .filter(function(d) {   
-                                                return d.checked;
-                                            })[0].value;
-
-        // wire up gauge location checkbox
-        d3.select("#gaugeLoc")
-            .on("change", function() {
-                drawGaugeLocations(d3.select(this).property("checked"));
-            });
     });
 
     return defaultParameters;
@@ -178,13 +168,14 @@ async function setupControlPanel(visParameters) {
 async function init() {
     // draw visualization scaffolds
     await setupBaseMap();
-    await setupDistributionPlots();
+    await setupDistributionPlot();
     await setupHydrographPlots();
 
     // setup UI elements
-    const uiParams = new uiParameters();
-    const defaultParameters = await setupControlPanel(uiParams);
-    uiParams.init(defaultParameters);
+    const defaultParameters = await setupControlPanel();
+    uiParameters.init(defaultParameters);
+
+    drawMapData();
 }
 
 init();

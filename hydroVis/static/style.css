@@ -36,6 +36,6 @@
     height: 10vh;
 }
 
-#distribution1-div, #distribution2-div, #hydrograph-div {
+#distribution-div, #hydrographSV-div, #hydrographInf-div {
     height: 30vh;
 }

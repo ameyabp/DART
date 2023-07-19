@@ -50,19 +50,35 @@ class Observations:
         f = open(os.path.join(self.modelFilesPath, self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}'), 'r')
 
         readLinkID = False
+        readLoc = False
+        location = None
         idx = 0
 
         line = f.readline()
         while line != '':
-        # for idx, line in enumerate(f.readline()):
             if readLinkID:
                 linkID = -1 * int(line.strip())
                 assert linkID > 0
-                self.observedLinkIDs[linkID] = idx - 173   # TODO: Remove hardcoding
+                self.observedLinkIDs[linkID] = {
+                    'location': location,
+                    'fileLine': idx - 173   # TODO: Remove hardcoding
+                }
+                location = None
                 readLinkID = False
 
             if 'kind\n' in line:
                 readLinkID = True
+            
+            if readLoc:
+                coordinates = line.split()
+                location = [
+                    float(coordinates[0]) * 180 / math.pi,
+                    float(coordinates[1]) * 180 / math.pi
+                ]
+                readLoc = False
+
+            if 'loc3d\n' in line:
+                readLoc = True
 
             idx += 1
             line = f.readline()
@@ -70,7 +86,7 @@ class Observations:
         # TODO: Account for multiple observations from the same location/gauge
         f.close()
 
-    def getHydrographData(self, linkID, aggregation, stateVariable):
+    def getHydrographData(self, linkID, aggregation):
         hydrographData = {}
         hydrographData['linkID'] = linkID
 
@@ -93,7 +109,7 @@ class Observations:
 
         hydrographData['data'] = []
 
-        locationDataOffset = self.observedLinkIDs[linkID] if linkID in self.observedLinkIDs else -1
+        locationDataOffset = self.observedLinkIDs[linkID]['fileLine'] if linkID in self.observedLinkIDs else -1
 
         if locationDataOffset > 0:
             for timestamp in self.timestampList:
@@ -111,32 +127,15 @@ class Observations:
         return hydrographData
     
     def getGaugeLocations(self):
-        self.gaugeLocations = []
-        f = open(os.path.join(self.modelFilesPath, self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}'), 'r')
+        gaugeLocationData = []
+        
+        for linkID in self.observedLinkIDs:
+            gaugeLocationData.append({
+                'linkID': linkID,
+                'location': self.observedLinkIDs[linkID]['location']
+            })
 
-        readLoc = False
-        idx = 0
-
-        line = f.readline()
-        while line != '':
-            if readLoc:
-                coordinates = line.split()
-                self.gaugeLocations.append([
-                    float(coordinates[0]) * 180 / math.pi,
-                    float(coordinates[1]) * 180 / math.pi
-                ])
-                readLoc = False
-
-            if 'loc3d\n' in line:
-                readLoc = True
-
-            idx += 1
-            line = f.readline()
-
-        # TODO: Account for multiple observations from the same location/gauge
-        f.close()
-
-        return self.gaugeLocations
+        return gaugeLocationData
     
 class Ensemble:
     def __init__(self, modelFilesPath, rlData):
@@ -236,24 +235,33 @@ class Ensemble:
             'ensembleData': ensembleData
         }
 
-    def getHydrographData(self, linkID, stateVariable, aggregation, hydrographData):
-        if len(hydrographData['data']) == 0:
-            for timestamp in self.timestamps:
-                if aggregation == 'mean' or aggregation == 'sd':
-                    analysisFilename = f'analysis_{aggregation}.{timestamp}.nc'
-                    forecastFilename = f'preassim_{aggregation}.{timestamp}.nc'
-                else:
-                    analysisFilename = f'analysis_{aggregation.rjust(4, "0")}.{timestamp}.nc'
-                    forecastFilename = f'preassim_{aggregation.rjust(4, "0")}.{timestamp}.nc'
+    def getHydrographData(self, linkID, aggregation, stateVariable):
+        hydrographData = {}
+        hydrographData['linkID'] = linkID
 
-                analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
-                forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+        if aggregation == 'mean' or aggregation =='sd':
+            hydrographData['agg'] = aggregation
+        else:
+            hydrographData['agg'] = int(aggregation)
 
-                hydrographData['data'].append({
-                    'timestamp': timestamp,
-                    'forecast': float(forecastData.variables[stateVariable][linkID].item()),
-                    'analysis': float(analysisData.variables[stateVariable][linkID].item())
-                })
+        hydrographData['data'] = []
+    
+        for timestamp in self.timestamps:
+            if aggregation == 'mean' or aggregation == 'sd':
+                analysisFilename = f'analysis_{aggregation}.{timestamp}.nc'
+                forecastFilename = f'preassim_{aggregation}.{timestamp}.nc'
+            else:
+                analysisFilename = f'analysis_{aggregation.rjust(4, "0")}.{timestamp}.nc'
+                forecastFilename = f'preassim_{aggregation.rjust(4, "0")}.{timestamp}.nc'
+
+            analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
+            forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+
+            hydrographData['data'].append({
+                'timestamp': timestamp,
+                'forecast': float(forecastData.variables[stateVariable][linkID].item()),
+                'analysis': float(analysisData.variables[stateVariable][linkID].item())
+            })
 
         hydrographData['lon'] = float(self.rl.lon[linkID])
         hydrographData['lat'] = float(self.rl.lat[linkID])
@@ -330,9 +338,12 @@ if __name__=='__main__':
             linkID = query['linkID']
             stateVariable = query['stateVariable']
             aggregation = query['aggregation']
+            readFromGaugeLocation = query['readFromGaugeLocation']
 
-            hydrographData = observations.getHydrographData(linkID, aggregation, stateVariable)
-            hydrographData = ensemble.getHydrographData(linkID, stateVariable, aggregation, hydrographData)
+            if readFromGaugeLocation and stateVariable == 'qlink1':
+                hydrographData = observations.getHydrographData(linkID, aggregation)
+            else:
+                hydrographData = ensemble.getHydrographData(linkID, aggregation, stateVariable)
             
             return json.dumps(hydrographData)
         else:

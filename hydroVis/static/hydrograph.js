@@ -1,4 +1,5 @@
-import { getJSDateObjectFromTimestamp } from "./helper.js";
+import { getJSDateObjectFromTimestamp, wrfHydroStateVariables } from "./helper.js";
+import { uiParameters } from "./uiParameters.js";
 
 class hydrographPlotParams {
     static leftMargin = 50;
@@ -27,6 +28,7 @@ class hydrographPlotParams {
         this.divWidth = width;
         this.plotWidth = this.divWidth - this.leftMargin - this.rightMargin;
         this.legendRectWidth = this.plotWidth * 0.05;
+        this.legendLeftX = this.plotWidth * 0.8
     }
 
     static setDivHeight(height) {
@@ -63,7 +65,157 @@ class hydrographPlotParams {
     static legendRectWidth = 0;
     static legendRectHeight = 0;
     static legendLabelFontSize = 10;
+    static legendLeftX = 0;
+}
 
+function setupHydrographPlot(id, timestamps) {
+    var hydrographSvg = d3.select(`#${id}-div`)
+                            .append("svg")
+                            .attr("width", "100%")
+                            .attr("height", "100%")
+                            .attr("id", `${id}-svg`);
+
+    // setup y axis
+    hydrographSvg.append("g")
+                .attr("id", `${id}-yAxis`)
+                .attr("transform", `translate(${hydrographPlotParams.leftMargin}, ${hydrographPlotParams.topMargin})`)
+
+    // hydrographSvg.append("text")
+    //             .text(function() {
+    //                 if (id === 'hydrographSV')   return 'State Variable';
+    //                 else    return 'Inflation';
+    //             })
+    //             .attr("id", `${id}-yAxis-label`)
+    //             .attr("x", -hydrographPlotParams.topMargin-(hydrographPlotParams.divHeight-hydrographPlotParams.topMargin-hydrographPlotParams.bottomMargin)/2)
+    //             .attr("y", 0)
+    //             .attr("font-size", hydrographPlotParams.axesLabelFontSize)
+    //             .attr("text-anchor", "middle")
+    //             .attr("alignment-baseline", "hanging")
+    //             .attr("transform", `rotate(-90)`);
+
+    var yScale = d3.scaleLinear()
+                .domain([0, 1])
+                .range([hydrographPlotParams.plotHeight, 0])
+                .nice();
+
+    var yAxis = d3.axisLeft(yScale)
+                .ticks(5)
+                .tickFormat(d3.format(".4"));
+
+    d3.select(`#${id}-yAxis`).call(yAxis);
+
+    hydrographPlotParams.setVerticalAxis(yAxis);
+
+    // setup x axis
+    hydrographSvg.append("g")
+                .attr("id", `${id}-xAxis`)
+                .attr("transform", `translate(${hydrographPlotParams.leftMargin}, ${hydrographPlotParams.divHeight - hydrographPlotParams.bottomMargin})`);
+
+    hydrographSvg.append("text")
+                .text("Time")
+                .attr("x", hydrographPlotParams.leftMargin + (hydrographPlotParams.divWidth-hydrographPlotParams.leftMargin-hydrographPlotParams.rightMargin)/2)
+                .attr("y", hydrographPlotParams.divHeight-5)
+                .attr("font-size", hydrographPlotParams.axesLabelFontSize)
+                .attr("text-anchor", "middle")
+                .attr("alignment-baseline", "baseline");
+
+    var xScale = d3.scaleTime()
+                .domain(d3.extent(timestamps))
+                .range([0, hydrographPlotParams.plotWidth])
+                .nice();
+
+    var xAxis = d3.axisBottom(xScale)
+                .ticks(5);
+
+    d3.select(`#${id}-xAxis`).call(xAxis);
+
+    hydrographPlotParams.setHorizontalScale(xScale);
+
+    // setup plot area
+    hydrographSvg.append("g")
+                .attr("id", `${id}-plot`)
+                .attr("transform", `translate(${hydrographPlotParams.leftMargin}, ${hydrographPlotParams.topMargin})`)
+                // clip path
+                .append("clipPath")
+                .attr("id", `${id}-clip`)
+                .append("rect")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", hydrographPlotParams.plotWidth)
+                .attr("height", hydrographPlotParams.plotHeight);
+
+    // gridlines
+    hydrographSvg.select(`#${id}-plot`)
+                .append("g")
+                .attr("id", `${id}-gridlines`)
+                .attr("clip-path", `url(#${id}-clip)`)
+                .selectAll("line")
+                .data(yScale.ticks(), d => d)
+                .enter()
+                    .append("line")
+                    .attr("x1", 0)
+                    .attr("x2", hydrographPlotParams.plotWidth)
+                    .attr("y1", d => yScale(d))
+                    .attr("y2", d => yScale(d))
+                    .style("stroke", "grey")
+                    .style("opacity", 0.2);
+
+    // data area
+    hydrographSvg.select(`#${id}-plot`)
+                .append("g")
+                .attr("id", `${id}-forecast-data`);
+
+    hydrographSvg.select(`#${id}-plot`)
+                .append("g")
+                .attr("id", `${id}-analysis-data`);
+
+    hydrographSvg.select(`#${id}-plot`)
+                .append("g")
+                .attr("id", `${id}-observation-data`);
+
+    // legend
+    hydrographSvg.select(`#${id}-plot`)
+                .append("g")
+                .attr("id", `${id}-legend`);
+
+    d3.select(`#${id}-legend`)
+        .selectAll("rect")
+        .data(id === 'hydrographInf' ? hydrographPlotParams.legend.slice(0,2) : hydrographPlotParams.legend)
+        .enter()
+            .append("rect")
+            .attr("x", hydrographPlotParams.legendLeftX)
+            .attr("y", function(d, i) {
+                return (hydrographPlotParams.legendRectHeight + hydrographPlotParams.legendVerticalPadding) * i + hydrographPlotParams.legendVerticalPadding;
+            })
+            .attr("width", hydrographPlotParams.legendRectWidth)
+            .attr("height", hydrographPlotParams.legendRectHeight)
+            .style("stroke-width", 0)
+            .style("fill", function(d) {    return d.color; })
+            .style("opacity", 0.5);
+
+    d3.select(`#${id}-legend`)
+        .selectAll("text")
+        .data(id === 'hydrographInf' ? hydrographPlotParams.legend.slice(0,2) : hydrographPlotParams.legend)
+        .enter()
+            .append("text")
+            .text(function(d) { return d.daStage;   })
+            .attr("font-size", hydrographPlotParams.legendLabelFontSize)
+            .attr("x", hydrographPlotParams.legendLeftX + hydrographPlotParams.legendRectWidth + hydrographPlotParams.legendHorizontalPadding)
+            .attr("y", function(d, i) {
+                return (hydrographPlotParams.legendRectHeight + hydrographPlotParams.legendVerticalPadding) * i + hydrographPlotParams.legendVerticalPadding;
+            })
+            .attr("text-anchor", "start")
+            .attr("alignment-baseline", "hanging");
+
+    // setup details text panel
+    hydrographSvg.append("text")
+                .attr("id", `${id}-text`)
+                .attr("transform", `translate(${hydrographPlotParams.leftMargin}, 0)`)
+                .attr("text-anchor", "start")
+                .attr("alignment-baseline", "hanging")
+                .text(function() {
+                    return id === 'hydrographSV' ? "Hydrograph for state variable" : "Hydrograph for inflation"
+                })
 }
 
 export async function setupHydrographPlots() {
@@ -76,154 +228,24 @@ export async function setupHydrographPlots() {
     .then(function(timestamps) {
         timestamps = timestamps.map(getJSDateObjectFromTimestamp);
 
-        hydrographPlotParams.setDivHeight(document.getElementById("hydrograph-div").clientHeight);
-        hydrographPlotParams.setDivWidth(document.getElementById("hydrograph-div").clientWidth * 0.95);
+        // both hydrographSV-div and hydrographInf-div have the same dimensions
+        hydrographPlotParams.setDivHeight(document.getElementById("hydrographSV-div").clientHeight);
+        hydrographPlotParams.setDivWidth(document.getElementById("hydrographSV-div").clientWidth * 0.95);
 
-        var hydrographSvg = d3.select("#hydrograph-div")
-                                .append("svg")
-                                .attr("width", "100%")
-                                .attr("height", "100%")
-                                .attr("id", "hydrograph-svg");
-
-        // setup y axis
-        hydrographSvg.append("g")
-                    .attr("id", "hydrograph-yAxis")
-                    .attr("transform", `translate(${hydrographPlotParams.leftMargin}, ${hydrographPlotParams.topMargin})`)
-
-        hydrographSvg.append("text")
-                    .text("State variable")
-                    .attr("id", "hydrograph-yAxis-label")
-                    .attr("x", -hydrographPlotParams.topMargin-(hydrographPlotParams.divHeight-hydrographPlotParams.topMargin-hydrographPlotParams.bottomMargin)/2)
-                    .attr("y", 0)
-                    .attr("font-size", hydrographPlotParams.axesLabelFontSize)
-                    .attr("text-anchor", "middle")
-                    .attr("alignment-baseline", "hanging")
-                    .attr("transform", `rotate(-90)`);
-        
-        var yScale = d3.scaleLinear()
-                    .domain([0, 1])
-                    .range([hydrographPlotParams.plotHeight, 0])
-                    .nice();
-
-        var yAxis = d3.axisLeft(yScale)
-                        .ticks(5);
-
-        d3.select('#hydrograph-yAxis').call(yAxis);
-
-        hydrographPlotParams.setVerticalAxis(yAxis);
-        
-        // setup x axis
-        hydrographSvg.append("g")
-                    .attr("id", `hydrograph-xAxis`)
-                    .attr("transform", `translate(${hydrographPlotParams.leftMargin}, ${hydrographPlotParams.divHeight - hydrographPlotParams.bottomMargin})`);
-
-        hydrographSvg.append("text")
-                    .text("Time")
-                    .attr("x", hydrographPlotParams.leftMargin + (hydrographPlotParams.divWidth-hydrographPlotParams.leftMargin-hydrographPlotParams.rightMargin)/2)
-                    .attr("y", hydrographPlotParams.divHeight-5)
-                    .attr("font-size", hydrographPlotParams.axesLabelFontSize)
-                    .attr("text-anchor", "middle")
-                    .attr("alignment-baseline", "baseline");
-
-        var xScale = d3.scaleTime()
-                .domain(d3.extent(timestamps))
-                .range([0, hydrographPlotParams.plotWidth])
-                .nice();
-
-        var xAxis = d3.axisBottom(xScale)
-                .ticks(5);
-
-        d3.select(`#hydrograph-xAxis`).call(xAxis);
-
-        hydrographPlotParams.setHorizontalScale(xScale);
-
-        // setup plot area
-        hydrographSvg.append("g")
-                    .attr("id", `hydrograph-plot`)
-                    .attr("transform", `translate(${hydrographPlotParams.leftMargin}, ${hydrographPlotParams.topMargin})`)
-                // clip path
-                    .append("clipPath")
-                    .attr("id", `hydrograph-clip`)
-                    .append("rect")
-                    .attr("x", 0)
-                    .attr("y", 0)
-                    .attr("width", hydrographPlotParams.plotWidth)
-                    .attr("height", hydrographPlotParams.plotHeight);
-
-        // gridlines
-        hydrographSvg.select(`#hydrograph-plot`)
-                    .append("g")
-                    .attr("id", `hydrograph-gridlines`)
-                    .attr("clip-path", `url(#hydrograph-clip)`)
-                    .selectAll("line")
-                    .data(yScale.ticks(), d => d)
-                    .enter()
-                        .append("line")
-                        .attr("x1", 0)
-                        .attr("x2", hydrographPlotParams.plotWidth)
-                        .attr("y1", d => yScale(d))
-                        .attr("y2", d => yScale(d))
-                        .style("stroke", "grey")
-                        .style("opacity", 0.2);
-
-        // data area
-        hydrographSvg.select("#hydrograph-plot")
-                    .append("g")
-                    .attr("id", "hydrograph-forecast-data");
-
-        hydrographSvg.select("#hydrograph-plot")
-                    .append("g")
-                    .attr("id", "hydrograph-analysis-data");
-
-        hydrographSvg.select("#hydrograph-plot")
-                    .append("g")
-                    .attr("id", "hydrograph-observation-data");
-
-        // legend
-        hydrographSvg.select("#hydrograph-plot")
-                    .append("g")
-                    .attr("id", "hydrograph-legend");
-
-        d3.select(`#hydrograph-legend`)
-            .selectAll("rect")
-            .data(hydrographPlotParams.legend)
-            .enter()
-                .append("rect")
-                .attr("x", hydrographPlotParams.plotWidth * 0.8)
-                .attr("y", function(d, i) {
-                    return (hydrographPlotParams.legendRectHeight + hydrographPlotParams.legendVerticalPadding) * i + hydrographPlotParams.legendVerticalPadding;
-                })
-                .attr("width", hydrographPlotParams.legendRectWidth)
-                .attr("height", hydrographPlotParams.legendRectHeight)
-                .style("stroke-width", 0)
-                .style("fill", function(d) {    return d.color; })
-                .style("opacity", 0.5);
-            
-        d3.select(`#hydrograph-legend`)
-            .selectAll("text")
-            .data(hydrographPlotParams.legend)
-            .enter()
-                .append("text")
-                .text(function(d) { return d.daStage;   })
-                .attr("font-size", hydrographPlotParams.legendLabelFontSize)
-                .attr("x", hydrographPlotParams.plotWidth * 0.8 + hydrographPlotParams.legendRectWidth + hydrographPlotParams.legendHorizontalPadding)
-                .attr("y", function(d, i) {
-                    return (hydrographPlotParams.legendRectHeight + hydrographPlotParams.legendVerticalPadding) * i + hydrographPlotParams.legendVerticalPadding;
-                })
-                .attr("text-anchor", "start")
-                .attr("alignment-baseline", "hanging");
-
-        // setup details text panel
-        hydrographSvg.append("text")
-                        .attr("id", `hydrograph-text`)
-                        .attr("transform", `translate(${hydrographPlotParams.leftMargin}, 0)`)
-                        .attr("text-anchor", "start")
-                        .attr("alignment-baseline", "hanging")
-
+        setupHydrographPlot('hydrographSV', timestamps);
+        setupHydrographPlot('hydrographInf', timestamps);
     });
 }
 
-export async function drawHydrograph(linkID, stateVariable, aggregation) {
+export async function drawHydrographStateVariable() {
+    const stateVariable = uiParameters.stateVariable;
+    const aggregation = uiParameters.aggregation;
+    const linkID = uiParameters.linkID;
+    const readFromGaugeLocation = uiParameters.readFromGaugeLocation;
+
+    // TODO: check if new data really needs to be fetched, 
+    // or can we simply used already fetched data
+
     d3.json('/getHydrographData',
     {
         method: 'POST',
@@ -233,7 +255,8 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
         body: JSON.stringify({
             linkID: linkID,
             stateVariable: stateVariable,
-            aggregation: aggregation
+            aggregation: aggregation,
+            readFromGaugeLocation: readFromGaugeLocation
         })
     }).then(function(data) {
         console.log(data);
@@ -253,10 +276,10 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                         .nice();
         }
 
-        d3.select('#hydrograph-yAxis').call(hydrographPlotParams.yAxis.scale(yScale));
+        d3.select('#hydrographSV-yAxis').call(hydrographPlotParams.yAxis.scale(yScale));
 
         // recompute and rerender horizontal gridlines
-        d3.select('#hydrograph-gridlines')
+        d3.select('#hydrographSV-gridlines')
             .selectAll("line")
             .data(yScale.ticks(), d => d)
             .join(
@@ -280,7 +303,7 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
             )
 
         // render data
-        d3.select('#hydrograph-forecast-data')
+        d3.select('#hydrographSV-forecast-data')
             .selectAll("path")
             .data([data.data])
             .join(
@@ -305,7 +328,7 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                 }
             )
 
-        d3.select('#hydrograph-analysis-data')
+        d3.select('#hydrographSV-analysis-data')
             .selectAll("path")
             .data([data.data])
             .join(
@@ -330,8 +353,8 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                 }
             )
 
-        if ('observation' in data.data[0]) {
-            d3.select('#hydrograph-observation-data')
+        if (readFromGaugeLocation && stateVariable === 'qlink1') {
+            d3.select('#hydrographSV-observation-data')
                 .selectAll("path")
                 .data([data.data])
                 .join(
@@ -357,17 +380,24 @@ export async function drawHydrograph(linkID, stateVariable, aggregation) {
                 )
         }
         else {
-            d3.select("#hydrograph-observation-data")
+            d3.select("#hydrographSV-observation-data")
                 .selectAll("path")
                 .remove();
         }
 
         // render textual information
-        d3.select('#hydrograph-text')
-            .text(`Link ID: ${linkID} at (${Math.round(data.lon * 100) / 100}, ${Math.round(data.lat * 100) / 100})`)
-
-        // relabel y axis
-        d3.select("#hydrograph-yAxis-label")
-            .text('qlink1');
+        d3.select('#hydrographSV-text')
+            .text(function() {
+                if (aggregation == 'mean')
+                    return `Hydrograph for ${aggregation} ${stateVariable} (${wrfHydroStateVariables[stateVariable].units})`;
+                else if (aggregation == 'sd')
+                    return `Hydrograph for ${aggregation} of ${stateVariable} (${wrfHydroStateVariables[stateVariable].units})`;
+                else
+                    return `Hydrograph of ${stateVariable} (${wrfHydroStateVariables[stateVariable].units}) for ensemble member ${aggregation}`;
+            })
     });
+}
+
+export async function drawHydrographInflation() {
+
 }

@@ -64,7 +64,7 @@ export function setupTooltip(vpWidth, vpHeight) {
         if ('line' in d) {
             return "Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
                     d.line.coordinates[d.line.coordinates.length-1].map(x => x.toFixed(2)).join(', ') + 
-                    "<br/>qlink1: " + d.qlink1 + "<br/>z_gwsubbas: " + d.z_gwsubbas;
+                    (('qlink1' in d) ? ("<br/>qlink1: " + d.qlink1) : "") + (('z_gwsubbas' in d) ? "<br/>z_gwsubbas: " + d.z_gwsubbas : "");
         }
         else {
             const lon = (d[0] > 180) ? d[0] - 360 : ((d[0] < -180) ? d[0] + 360 : d[0]);
