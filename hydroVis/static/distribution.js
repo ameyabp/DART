@@ -284,18 +284,18 @@ export async function drawDistribution() {
         d3.select(`#distribution-xAxis`)
             .call(distributionPlotParams.xAxis.scale(xScale));
 
-        // var n = data.length;
-        // var bins = d3.histogram().domain(xScale.domain()).thresholds(40)(data);
-        const analysisDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['analysis']));
-        const forecastDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['forecast']));
+        const analysisBins = d3.histogram().domain(xScale.domain()).thresholds(80)(data.ensembleData.map(d => d[stateVariable]['analysis']));
+        const forecastBins = d3.histogram().domain(xScale.domain()).thresholds(80)(data.ensembleData.map(d => d[stateVariable]['forecast']));
+        // const analysisDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['analysis']));
+        // const forecastDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['forecast']));
 
-        // console.log(analysisDensity);
-        // console.log(forecastDensity);
+        // console.log(analysisBins);
+        // console.log(forecastBins);
         const distributionSvg = d3.select(`#distribution-svg`);
 
         // recompute and rerender Y axis
         var yScale = d3.scaleLinear()
-                .domain(d3.extent(analysisDensity.concat(forecastDensity), d => d[1])) // keep some buffer to avoid data overlapping with the legend
+                .domain([0, d3.max(analysisBins.concat(forecastBins), d => d.length)])
                 .range([distributionPlotParams.plotHeight, 0])
                 .nice();
 
@@ -329,55 +329,51 @@ export async function drawDistribution() {
         // render data
         d3.select(`#distribution-analysis-data`)
             .attr("clip-path", `url(#distribution-clip)`)
-            .selectAll("path")
-            .data([analysisDensity])
+            .selectAll("rect")
+            .data(analysisBins)
             .join(
                 function enter(enter) {
-                    enter.append("path")
+                    enter.append("rect")
                         .attr("fill", "#1f78b4")    // blue
                         .attr("stroke-width", 0)
                         .style("opacity", 0.5)
-                        .attr("d", d3.area()
-                                    .x(function(d) {    return xScale(d[0]);    })
-                                    .y0(yScale(0))
-                                    .y1(function(d) {   return yScale(d[1]);    })
-                        );
+                        .attr("x", function(d) {    return xScale(d.x0) + 1;    })
+                        .attr("y", function(d) {    return yScale(d.length);    })
+                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0) - 1; })
+                        .attr("height", function(d) {   return distributionPlotParams.plotHeight - yScale(d.length);    });
                 },
                 function update(update) {
                     update.transition()
                         .duration(200)
-                        .attr("d", d3.area()
-                                    .x(function(d) {    return xScale(d[0]);    })
-                                    .y0(yScale(0))
-                                    .y1(function(d) {   return yScale(d[1]);    })
-                        );
+                        .attr("x", function(d) {    return xScale(d.x0)+1;    })
+                        .attr("y", function(d) {    return yScale(d.length);    })
+                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0) - 1; })
+                        .attr("height", function(d) {   return distributionPlotParams.plotHeight - yScale(d.length);    });
                 }
             )
 
         d3.select(`#distribution-forecast-data`)
             .attr("clip-path", `url(#distribution-clip)`)
-            .selectAll("path")
-            .data([forecastDensity])
+            .selectAll("rect")
+            .data(forecastBins)
             .join(
                 function enter(enter) {
-                    enter.append("path")
+                    enter.append("rect")
                         .attr("fill", "#33a02c")    // green
                         .attr("stroke-width", 0)
                         .style("opacity", 0.5)
-                        .attr("d", d3.area()
-                                    .x(function(d) {    return xScale(d[0]);    })
-                                    .y0(yScale(0))
-                                    .y1(function(d) {   return yScale(d[1]);    })
-                        );
+                        .attr("x", function(d) {    return xScale(d.x0)+1;    })
+                        .attr("y", function(d) {    return yScale(d.length);    })
+                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0) - 1; })
+                        .attr("height", function(d) {   return distributionPlotParams.plotHeight - yScale(d.length);    });
                 },
                 function update(update) {
                     update.transition()
                         .duration(200)
-                        .attr("d", d3.area()
-                                    .x(function(d) {    return xScale(d[0]);    })
-                                    .y0(yScale(0))
-                                    .y1(function(d) {   return yScale(d[1]);    })
-                        );
+                        .attr("x", function(d) {    return xScale(d.x0)+1;    })
+                        .attr("y", function(d) {    return yScale(d.length);    })
+                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0) - 1; })
+                        .attr("height", function(d) {   return distributionPlotParams.plotHeight - yScale(d.length);    });
                 }
             )
         
