@@ -173,10 +173,13 @@ class Ensemble:
         print(timestamp, aggregation, daStage, stateVariable, inflation)
 
         # construct required netcdf file name
-        if inflation:
-            filename = f'{daStage}_{inflation}_{aggregation}.{timestamp}.nc'
+        if aggregation == 'mean' or aggregation == 'sd':                
+            if inflation:
+                filename = f'{daStage}_{inflation}_{aggregation}.{timestamp}.nc'
+            else:
+                filename = f'{daStage}_{aggregation}.{timestamp}.nc'
         else:
-            filename = f'{daStage}_{aggregation}.{timestamp}.nc'
+            filename = f'{daStage}_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
 
         ncData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
         assert(self.rl.numLinks == len(ncData.variables[self.stateVariables[0]][:]))
@@ -251,8 +254,8 @@ class Ensemble:
                 analysisFilename = f'analysis_{aggregation}.{timestamp}.nc'
                 forecastFilename = f'preassim_{aggregation}.{timestamp}.nc'
             else:
-                analysisFilename = f'analysis_{aggregation.rjust(4, "0")}.{timestamp}.nc'
-                forecastFilename = f'preassim_{aggregation.rjust(4, "0")}.{timestamp}.nc'
+                analysisFilename = f'analysis_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
+                forecastFilename = f'preassim_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
 
             analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
             forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))

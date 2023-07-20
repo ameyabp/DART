@@ -232,6 +232,8 @@ export async function drawHydrographStateVariable() {
 
     // TODO: check if new data really needs to be fetched, 
     // or can we simply used already fetched data
+    if (!linkID)
+        return;
 
     d3.json('/getHydrographStateVariableData',
     {
@@ -376,9 +378,9 @@ export async function drawHydrographStateVariable() {
         d3.select('#hydrographSV-text')
             .text(function() {
                 if (aggregation == 'mean')
-                    return `Hydrograph for ${aggregation} ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units})`;
+                    return `Hydrograph for mean ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units})`;
                 else if (aggregation == 'sd')
-                    return `Hydrograph for ${aggregation} of ${wrfHydroStateVariables[stateVariable].stateVariable} (${wrfHydroStateVariables[stateVariable].units})`;
+                    return `Hydrograph for standard deviation of ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units})`;
                 else
                     return `Hydrograph of ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units}) for ensemble member ${aggregation}`;
             })
