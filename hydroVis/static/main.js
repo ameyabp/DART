@@ -115,11 +115,12 @@ async function setupControlPanel() {
         .on("change", function() {
             updateInflation(this.value === 'none' ? null : this.value);
         });
-        defaultParameters['inflation'] = d3.selectAll("input[name='inflation']")
-                                            .nodes()
-                                            .filter(function(d) {   
-                                                return d.checked;
-                                            })[0].value;
+        const defaultInflationValue = d3.selectAll("input[name='inflation']")
+                                .nodes()
+                                .filter(function(d) {   
+                                    return d.checked;
+                                })[0].value;
+        defaultParameters['inflation'] = defaultInflationValue === 'none' ? null : defaultInflationValue;
 
         // wire up gauge location checkbox
         d3.select("#gaugeLoc")

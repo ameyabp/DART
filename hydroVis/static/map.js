@@ -25,8 +25,8 @@ class mapPlotParams {
     static setMapSize(width, height) {
         this.mapWidth = width;
         this.mapHeight = height;
-        this.legendLeftX = width * 0.85;
-        this.legendTopY = height * 0.1;
+        this.legendLeftX = this.leftMargin + (width - this.leftMargin - this.rightMargin) * 0.02;
+        this.legendTopY = this.topMargin + (height - this.topMargin - this.bottomMargin) * 0.9;
     }
 
     static colorInterpolator = d3.interpolateWarm;
@@ -57,14 +57,16 @@ class mapPlotParams {
 
     static legendLeftX = 0;
     static legendTopY = 0;
-    static legendRectWidth = 0.5;
+    static legendRectWidth = 0.7;
     static legendRectMinHeight = 5;
     static legendRectMaxHeight = 20;
     static legendRectCount = 256;
     static legendNumTicks = 3;
     static legendTickHeight = 25;
     static legendTickFontSize = 12;
-    static legendTitleFontSize = 14;
+    static legendTitleFontSize = 15;
+    static legendSubtitleFontSize = 12;
+    static legendTitleVerticalOffset = -40;
 
     static generateLegendRects() {
         var legend = []
@@ -81,7 +83,13 @@ class mapPlotParams {
         return legend;
     }
 
-    static generateLegendTicks(data, stateVariable) {
+    static generateLegendTicks(data) {
+        const stateVariable = uiParameters.stateVariable;
+        const inflation = uiParameters.inflation;
+        const aggregation = uiParameters.aggregation;
+        const daStage = uiParameters.daStage;
+        const timestamp = uiParameters.timestamp;
+
         const min = Math.round(d3.min(data) * 100) / 100;
         const max = Math.round(d3.max(data) * 100) / 100;
 
@@ -91,8 +99,9 @@ class mapPlotParams {
                 x: (this.legendRectWidth * this.legendRectCount) * i/(this.legendNumTicks-1),
                 y1: 0,
                 y2: this.legendTickHeight,
-                label: min + (max-min) * i/(this.legendNumTicks-1),
-                fontSize: this.legendTickFontSize
+                label: d3.format("0.3")(min + (max-min) * i/(this.legendNumTicks-1)),
+                fontSize: this.legendTickFontSize,
+                textType: 'tick'
             }
             ticks.push(tick);
         }
@@ -113,14 +122,27 @@ class mapPlotParams {
                 }
             );
 
+        var labelTitle = ''
+        if (inflation)
+            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : 'Analysis'} for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} Inflation on ${wrfHydroStateVariables[stateVariable].commonName}`
+        else
+            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : 'Analysis'} for ${wrfHydroStateVariables[stateVariable].commonName}`
+
         ticks.push({
-            x: (this.legendRectWidth * this.legendRectCount) / 2,
-            y1: -20,
-            label: `${wrfHydroStateVariables[stateVariable].commonName} in ${wrfHydroStateVariables[stateVariable].units}`,
-            fontSize: this.legendTitleFontSize
+            x: 0,
+            y1: this.legendTitleVerticalOffset,
+            label: labelTitle,
+            fontSize: this.legendTitleFontSize,
+            textType: 'legendTitle'
         });
 
-        const legendTickFontSize = this.legendTickFontSize;
+        ticks.push({
+            x: 0,
+            y1: this.legendTitleVerticalOffset/2,
+            label: 'in ' + wrfHydroStateVariables[stateVariable].units,
+            fontSize: this.legendTickFontSize,
+            textType: 'legendSubtitle'
+        })
 
         // tick labels
         d3.select("#mapLegend")
@@ -129,15 +151,20 @@ class mapPlotParams {
             .join(
                 function enter(enter) {
                     enter.append("text")
-                        .text(function(d) { return d.label; })
+                        .html(function(d) { return d.label; })
                         .attr("x", function(d) {  return d.x;   })
                         .attr("y", function(d) {    return d.y1-5; })
-                        .attr("text-anchor", "middle")
+                        .attr("text-anchor", function(d) {
+                            if (d.textType === 'tick')
+                                return "middle";
+                            else
+                                return "left";
+                        })
                         .attr("alignment-baseline", "baseline")
-                        .attr("font-size", function(d) {    return d.fontSize;  }); // do not access this variable using 'this', it defaults to the d3 text element
+                        .attr("font-size", function(d) {    return d.fontSize;  });
                 },
                 function update(update) {
-                    update.text(function(d) { return d.label; });
+                    update.html(function(d) { return d.label; });
                 }
             );
         

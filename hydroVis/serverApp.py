@@ -86,7 +86,7 @@ class Observations:
         # TODO: Account for multiple observations from the same location/gauge
         f.close()
 
-    def getHydrographData(self, linkID, aggregation):
+    def getHydrographStateVariableData(self, linkID, aggregation):
         hydrographData = {}
         hydrographData['linkID'] = linkID
 
@@ -128,7 +128,7 @@ class Observations:
     
     def getGaugeLocations(self):
         gaugeLocationData = []
-        
+
         for linkID in self.observedLinkIDs:
             gaugeLocationData.append({
                 'linkID': linkID,
@@ -235,7 +235,7 @@ class Ensemble:
             'ensembleData': ensembleData
         }
 
-    def getHydrographData(self, linkID, aggregation, stateVariable):
+    def getHydrographStateVariableData(self, linkID, aggregation, stateVariable):
         hydrographData = {}
         hydrographData['linkID'] = linkID
 
@@ -267,6 +267,31 @@ class Ensemble:
         hydrographData['lat'] = float(self.rl.lat[linkID])
 
         return hydrographData
+    
+    def getHydrographInflationData(self, linkID, stateVariable, inflation):
+        hydrographData = {}
+        hydrographData['linkID'] = linkID
+
+        hydrographData['data'] = []
+
+        for timestamp in self.timestamps:
+            analysisFilename = f'analysis_{inflation}_mean.{timestamp}.nc'
+            forecastFilename = f'preassim_{inflation}_mean.{timestamp}.nc'
+
+            analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
+            forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+
+            hydrographData['data'].append({
+                'timestamp': timestamp,
+                'analysis': float(analysisData.variables[stateVariable][linkID].item()),
+                'forecast': float(forecastData.variables[stateVariable][linkID].item())
+            })
+
+        hydrographData['lon'] = float(self.rl.lon[linkID])
+        hydrographData['lat'] = float(self.rl.lat[linkID])
+
+        return hydrographData
+
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(prog="HydroVis - Visual Analysis Tool for DART Forecasting of Hydro Models")
@@ -331,8 +356,8 @@ if __name__=='__main__':
         else:
             print('Expected POST method, but received ' + request.method)
 
-    @app.route('/getHydrographData', methods=['POST'])
-    def getHydrographData():
+    @app.route('/getHydrographStateVariableData', methods=['POST'])
+    def getHydrographStateVariableData():
         if request.method == 'POST':
             query = json.loads(request.data)
             linkID = query['linkID']
@@ -341,9 +366,9 @@ if __name__=='__main__':
             readFromGaugeLocation = query['readFromGaugeLocation']
 
             if readFromGaugeLocation and stateVariable == 'qlink1':
-                hydrographData = observations.getHydrographData(linkID, aggregation)
+                hydrographData = observations.getHydrographStateVariableData(linkID, aggregation)
             else:
-                hydrographData = ensemble.getHydrographData(linkID, aggregation, stateVariable)
+                hydrographData = ensemble.getHydrographStateVariableData(linkID, aggregation, stateVariable)
             
             return json.dumps(hydrographData)
         else:
@@ -355,5 +380,19 @@ if __name__=='__main__':
             return json.dumps(observations.getGaugeLocations())
         else:
             print('Expected GET method, but received ' + request.method)
+
+    @app.route('/getHydrographInflationData', methods=['POST'])
+    def getHydrographInflationData():
+        if request.method == 'POST':
+            query = json.loads(request.data)
+            linkID = query['linkID']
+            stateVariable = query['stateVariable']
+            inflation = query['inflation']
+
+            hydrographData = ensemble.getHydrographInflationData(linkID, stateVariable, inflation)
+            return json.dumps(hydrographData)
+        else:
+            print('Expected POST method, but received ' + request.method)
+
 
     app.run(host='127.0.0.1', port=8000, debug=True, use_evalex=False, use_reloader=True)

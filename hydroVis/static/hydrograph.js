@@ -80,19 +80,6 @@ function setupHydrographPlot(id, timestamps) {
                 .attr("id", `${id}-yAxis`)
                 .attr("transform", `translate(${hydrographPlotParams.leftMargin}, ${hydrographPlotParams.topMargin})`)
 
-    // hydrographSvg.append("text")
-    //             .text(function() {
-    //                 if (id === 'hydrographSV')   return 'State Variable';
-    //                 else    return 'Inflation';
-    //             })
-    //             .attr("id", `${id}-yAxis-label`)
-    //             .attr("x", -hydrographPlotParams.topMargin-(hydrographPlotParams.divHeight-hydrographPlotParams.topMargin-hydrographPlotParams.bottomMargin)/2)
-    //             .attr("y", 0)
-    //             .attr("font-size", hydrographPlotParams.axesLabelFontSize)
-    //             .attr("text-anchor", "middle")
-    //             .attr("alignment-baseline", "hanging")
-    //             .attr("transform", `rotate(-90)`);
-
     var yScale = d3.scaleLinear()
                 .domain([0, 1])
                 .range([hydrographPlotParams.plotHeight, 0])
@@ -246,7 +233,7 @@ export async function drawHydrographStateVariable() {
     // TODO: check if new data really needs to be fetched, 
     // or can we simply used already fetched data
 
-    d3.json('/getHydrographData',
+    d3.json('/getHydrographStateVariableData',
     {
         method: 'POST',
         headers: {
@@ -323,7 +310,7 @@ export async function drawHydrographStateVariable() {
                         .duration(200)
                         .attr("d", d3.line()
                                     .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
-                                    .y(function(d) {    return yScale(d.forecast)   })
+                                    .y(function(d) {    return yScale(d.forecast);   })
                         );
                 }
             )
@@ -348,7 +335,7 @@ export async function drawHydrographStateVariable() {
                         .duration(200)
                         .attr("d", d3.line()
                                     .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
-                                    .y(function(d) {    return yScale(d.analysis)   })
+                                    .y(function(d) {    return yScale(d.analysis);   })
                         );
                 }
             )
@@ -389,15 +376,141 @@ export async function drawHydrographStateVariable() {
         d3.select('#hydrographSV-text')
             .text(function() {
                 if (aggregation == 'mean')
-                    return `Hydrograph for ${aggregation} ${stateVariable} (${wrfHydroStateVariables[stateVariable].units})`;
+                    return `Hydrograph for ${aggregation} ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units})`;
                 else if (aggregation == 'sd')
-                    return `Hydrograph for ${aggregation} of ${stateVariable} (${wrfHydroStateVariables[stateVariable].units})`;
+                    return `Hydrograph for ${aggregation} of ${wrfHydroStateVariables[stateVariable].stateVariable} (${wrfHydroStateVariables[stateVariable].units})`;
                 else
-                    return `Hydrograph of ${stateVariable} (${wrfHydroStateVariables[stateVariable].units}) for ensemble member ${aggregation}`;
+                    return `Hydrograph of ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units}) for ensemble member ${aggregation}`;
             })
     });
 }
 
 export async function drawHydrographInflation() {
+    const stateVariable = uiParameters.stateVariable;
+    const linkID = uiParameters.linkID;
+    const inflation = uiParameters.inflation;
 
+    // TODO: check if new data really needs to be fetched, 
+    // or can we simply used already fetched data
+
+    if (!inflation) {
+        d3.select('#hydrographInf-forecast-data')
+            .selectAll("path")
+            .remove();
+
+        d3.select('#hydrographInf-analysis-data')
+            .selectAll("path")
+            .remove();
+
+        d3.select('#hydrographInf-text')
+            .text(function() {
+                return `Hydrograph for inflation`
+            })
+
+        return;
+    }
+
+    d3.json('/getHydrographInflationData',
+    {
+        method: 'POST',
+        headers: {
+            'Content-type': 'application/json; charset=UTF-8'
+        },
+        body: JSON.stringify({
+            linkID: linkID,
+            stateVariable: stateVariable,
+            inflation: inflation
+        })
+    }).then(function(data) {
+        console.log(data);
+
+        // recompute and rerender Y axis
+        var yScale = d3.scaleLinear()
+                        .domain([d3.min(data.data, d => Math.min(d.forecast, d.analysis)), d3.max(data.data, d => Math.max(d.forecast, d.analysis))])
+                        .range([hydrographPlotParams.plotHeight, 0])
+                        .nice();
+
+        d3.select('#hydrographInf-yAxis').call(hydrographPlotParams.yAxis.scale(yScale));
+
+        // recompute and rerender horizontal gridlines
+        d3.select('#hydrographInf-gridlines')
+            .selectAll("line")
+            .data(yScale.ticks(), d => d)
+            .join(
+                function enter(enter) {
+                    enter.append("line")
+                        .attr("x1", 0)
+                        .attr("x2", hydrographPlotParams.plotWidth)
+                        .attr("y1", d => yScale(d))
+                        .attr("y2", d => yScale(d))
+                        .style("stroke", "grey")
+                        .style("opacity", 0.2);
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("x1", 0)
+                        .attr("x2", hydrographPlotParams.plotWidth)
+                        .attr("y1", d => yScale(d))
+                        .attr("y2", d => yScale(d))
+                }
+            )
+
+        // render data
+        d3.select('#hydrographInf-forecast-data')
+            .selectAll("path")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .style("fill", "none")
+                        .style("stroke", "#33a02c")
+                        .style("stroke-width", hydrographPlotParams.strokeWidth)
+                        .style("opacity", 0.5)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.forecast);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.forecast)   })
+                        );
+                }
+            )
+
+        d3.select('#hydrographInf-analysis-data')
+            .selectAll("path")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .style("fill", "none")
+                        .style("stroke", "#1f78b4")
+                        .style("stroke-width", hydrographPlotParams.strokeWidth)
+                        .style("opacity", 0.5)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.analysis);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.analysis)   })
+                        );
+                }
+            )
+
+        // render textual information
+        d3.select('#hydrographInf-text')
+            .text(function() {
+                return `Hydrograph for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} distribution inflation for ${wrfHydroStateVariables[stateVariable].commonName}`
+            })
+    });
 }

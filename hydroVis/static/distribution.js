@@ -1,3 +1,4 @@
+import { wrfHydroStateVariables } from "./helper.js";
 import { uiParameters } from "./uiParameters.js";
 
 class distributionPlotParams {
@@ -277,15 +278,18 @@ export async function drawDistribution() {
 
         // recompute and rerender X axis
         var xScale = d3.scaleLinear()
-                        .domain([d3.min(data.ensembleData, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])), d3.max(data.ensembleData, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))])
+                        .domain([
+                            d3.min(data.ensembleData, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])),// * 0.9, // extend the min and max value to handle
+                            d3.max(data.ensembleData, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))// * 1.1  // the case where all values fall in the same bin
+                        ])
                         .range([0, distributionPlotParams.plotWidth])
                         .nice();
 
         d3.select(`#distribution-xAxis`)
             .call(distributionPlotParams.xAxis.scale(xScale));
 
-        const analysisBins = d3.histogram().domain(xScale.domain()).thresholds(80)(data.ensembleData.map(d => d[stateVariable]['analysis']));
-        const forecastBins = d3.histogram().domain(xScale.domain()).thresholds(80)(data.ensembleData.map(d => d[stateVariable]['forecast']));
+        const analysisBins = d3.histogram().domain(xScale.domain()).thresholds(xScale.ticks(50))(data.ensembleData.map(d => d[stateVariable]['analysis']));
+        const forecastBins = d3.histogram().domain(xScale.domain()).thresholds(xScale.ticks(50))(data.ensembleData.map(d => d[stateVariable]['forecast']));
         // const analysisDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['analysis']));
         // const forecastDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['forecast']));
 
@@ -339,7 +343,7 @@ export async function drawDistribution() {
                         .style("opacity", 0.5)
                         .attr("x", function(d) {    return xScale(d.x0) + 1;    })
                         .attr("y", function(d) {    return yScale(d.length);    })
-                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0) - 1; })
+                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0); })
                         .attr("height", function(d) {   return distributionPlotParams.plotHeight - yScale(d.length);    });
                 },
                 function update(update) {
@@ -347,7 +351,7 @@ export async function drawDistribution() {
                         .duration(200)
                         .attr("x", function(d) {    return xScale(d.x0)+1;    })
                         .attr("y", function(d) {    return yScale(d.length);    })
-                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0) - 1; })
+                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0); })
                         .attr("height", function(d) {   return distributionPlotParams.plotHeight - yScale(d.length);    });
                 }
             )
@@ -362,17 +366,17 @@ export async function drawDistribution() {
                         .attr("fill", "#33a02c")    // green
                         .attr("stroke-width", 0)
                         .style("opacity", 0.5)
-                        .attr("x", function(d) {    return xScale(d.x0)+1;    })
+                        .attr("x", function(d) {    return xScale(d.x0) + 1;    })
                         .attr("y", function(d) {    return yScale(d.length);    })
-                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0) - 1; })
+                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0); })
                         .attr("height", function(d) {   return distributionPlotParams.plotHeight - yScale(d.length);    });
                 },
                 function update(update) {
                     update.transition()
                         .duration(200)
-                        .attr("x", function(d) {    return xScale(d.x0)+1;    })
+                        .attr("x", function(d) {    return xScale(d.x0) + 1;    })
                         .attr("y", function(d) {    return yScale(d.length);    })
-                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0) - 1; })
+                        .attr("width", function(d) {    return xScale(d.x1) - xScale(d.x0); })
                         .attr("height", function(d) {   return distributionPlotParams.plotHeight - yScale(d.length);    });
                 }
             )
@@ -380,7 +384,7 @@ export async function drawDistribution() {
         // render textual information
         d3.select(`#distribution-text`)
             .text(function() {
-                return `Distribution of ${stateVariable}`
+                return `Distribution of ${wrfHydroStateVariables[stateVariable].commonName}`
             });
     });
 }
