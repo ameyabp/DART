@@ -128,6 +128,13 @@ class mapPlotParams {
         else
             labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : daStage} for ${wrfHydroStateVariables[stateVariable].commonName}`
 
+        if (aggregation != 'mean' && aggregation != 'sd') {
+            if (inflation)
+                labelTitle = `${daStage == 'preassim' ? 'Forecast' : daStage} for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} Inflation on ${wrfHydroStateVariables[stateVariable].commonName} for Member ${aggregation}`
+            else
+                labelTitle = `${daStage == 'preassim' ? 'Forecast' : daStage} for ${wrfHydroStateVariables[stateVariable].commonName} for Member ${aggregation}`
+        }
+
         ticks.push({
             x: 0,
             y1: this.legendTitleVerticalOffset,

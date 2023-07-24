@@ -201,7 +201,7 @@ function setupHydrographPlot(id, timestamps) {
                 .attr("text-anchor", "start")
                 .attr("alignment-baseline", "hanging")
                 .text(function() {
-                    return id === 'hydrographSV' ? "Hydrograph for state variable" : "Hydrograph for inflation"
+                    return id === 'hydrographSV' ? "Hydrograph for state variable" : "Hydrograph for mean inflation"
                 })
 }
 
@@ -571,7 +571,7 @@ export async function drawHydrographInflation() {
         // render textual information
         d3.select('#hydrographInf-text')
             .text(function() {
-                return `Hydrograph for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} distribution inflation for ${wrfHydroStateVariables[stateVariable].commonName}`
+                return `Hydrograph for mean ${inflation == 'priorinf' ? 'prior' : 'posterior'} distribution inflation for ${wrfHydroStateVariables[stateVariable].commonName}`
             })
     });
 }

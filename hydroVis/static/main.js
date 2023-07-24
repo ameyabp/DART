@@ -9,15 +9,19 @@ function updateStateVariable(stateVariable) {
     // call all the relevant renderer functions
     drawMapData();
     drawDistribution();
-    drawHydrographStateVariable();
-    drawHydrographInflation();
+    if (uiParameters.linkID) {
+        drawHydrographStateVariable();
+        drawHydrographInflation();
+    }
 }
 
 function updateAggregation(aggregation) {
     uiParameters.updateAggregation(aggregation);
     // call all the relevant renderer functions
     drawMapData();
-    drawHydrographStateVariable();
+    if (uiParameters.linkID) {
+        drawHydrographStateVariable();
+    }
 }
 
 function updateDaStage(daStage) {
@@ -30,7 +34,9 @@ function updateInflation(inflation) {
     uiParameters.updateInflation(inflation);
     // call all the relevant renderer functions
     drawMapData();
-    drawHydrographInflation();
+    if (uiParameters.linkID) {
+        drawHydrographInflation();
+    }
 }
 
 function updateShowGaugeLocations(showGaugeLocations) {
