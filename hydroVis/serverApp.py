@@ -93,18 +93,19 @@ class Observations:
         # compute file line offsets from line number of ' OBS' string
         observationDataOffset = 1
 
-        if aggregation == 'mean':
-            forecastDataOffset = 2
-            analysisDataOffset = 3
+        forecastMeanOffset = 2
+        analysisMeanOffset = 3
+        
+        forecastSdOffset = 4
+        analysisSdOffset = 5
+
+        if aggregation == 'mean' or aggregation == 'sd':
             hydrographData['agg'] = aggregation
-        elif aggregation =='sd':
-            forecastDataOffset = 4
-            analysisDataOffset = 5
-            hydrographData['agg'] = aggregation
+
         else:
             # individual member - indexed starting from 1
-            forecastDataOffset = 2 * (int(aggregation)-1) + 6
-            analysisDataOffset = 2 * (int(aggregation)-1) + 7
+            forecastMemberOffset = 2 * (int(aggregation)-1) + 6
+            analysisMemberOffset = 2 * (int(aggregation)-1) + 7
             hydrographData['agg'] = int(aggregation)
 
         hydrographData['data'] = []
@@ -119,8 +120,30 @@ class Observations:
                 data = {}
                 data['timestamp'] = timestamp
                 data['observation'] = lines[locationDataOffset + observationDataOffset].strip()
-                data['forecast'] = lines[locationDataOffset + forecastDataOffset].strip()
-                data['analysis'] = lines[locationDataOffset + analysisDataOffset].strip()
+
+                if aggregation == 'mean':
+                    data['forecast'] = float(lines[locationDataOffset + forecastMeanOffset].strip())
+                    data['analysis'] = float(lines[locationDataOffset + analysisMeanOffset].strip())
+                    data['forecastSdMin'] = float(lines[locationDataOffset + forecastMeanOffset].strip()) - float(lines[locationDataOffset + forecastSdOffset].strip())
+                    data['forecastSdMax'] = float(lines[locationDataOffset + forecastMeanOffset].strip()) + float(lines[locationDataOffset + forecastSdOffset].strip())
+                    data['analysisSdMin'] = float(lines[locationDataOffset + analysisMeanOffset].strip()) - float(lines[locationDataOffset + analysisSdOffset].strip())
+                    data['analysisSdMax'] = float(lines[locationDataOffset + analysisMeanOffset].strip()) + float(lines[locationDataOffset + analysisSdOffset].strip())
+
+                elif aggregation == 'sd':
+                    data['forecast'] = float(lines[locationDataOffset + forecastSdOffset].strip())
+                    data['analysis'] = float(lines[locationDataOffset + analysisSdOffset].strip())
+                    data['forecastSdMin'] = float(lines[locationDataOffset + forecastSdOffset].strip())
+                    data['forecastSdMax'] = float(lines[locationDataOffset + forecastSdOffset].strip())
+                    data['analysisSdMin'] = float(lines[locationDataOffset + analysisSdOffset].strip())
+                    data['analysisSdMax'] = float(lines[locationDataOffset + analysisSdOffset].strip())
+
+                else:
+                    data['forecast'] = float(lines[locationDataOffset + forecastMemberOffset].strip())
+                    data['analysis'] = float(lines[locationDataOffset + analysisMemberOffset].strip())
+                    data['forecastSdMin'] = float(lines[locationDataOffset + forecastMeanOffset].strip()) - float(lines[locationDataOffset + forecastSdOffset].strip())
+                    data['forecastSdMax'] = float(lines[locationDataOffset + forecastMeanOffset].strip()) + float(lines[locationDataOffset + forecastSdOffset].strip())
+                    data['analysisSdMin'] = float(lines[locationDataOffset + analysisMeanOffset].strip()) - float(lines[locationDataOffset + analysisSdOffset].strip())
+                    data['analysisSdMax'] = float(lines[locationDataOffset + analysisMeanOffset].strip()) + float(lines[locationDataOffset + analysisSdOffset].strip())
 
                 hydrographData['data'].append(data)
 
@@ -167,8 +190,7 @@ class Ensemble:
         return self.timestamps
     
     def getStateData(self, timestamp, aggregation, daStage, stateVariable, inflation=None):
-        # load required forecast data from netcdf files to python data structures in main memory
-        # map data structure hierarchy: timestamp, aggregation, daStage, stateVariable, location
+        # for map visualization
 
         print(timestamp, aggregation, daStage, stateVariable, inflation)
 
@@ -228,6 +250,7 @@ class Ensemble:
         return renderData
     
     def getEnsembleData(self, timestamp, stateVariable, linkID):
+        # for distribution plots
         ensembleData = []
 
         # construct required netcdf file name
@@ -255,6 +278,8 @@ class Ensemble:
         }
 
     def getHydrographStateVariableData(self, linkID, aggregation, stateVariable):
+        # for state variable hydrograph plot
+
         hydrographData = {}
         hydrographData['linkID'] = linkID
 
@@ -325,6 +350,8 @@ class Ensemble:
         return hydrographData
     
     def getHydrographInflationData(self, linkID, stateVariable, inflation):
+        # for inflation hydrograph plot
+
         hydrographData = {}
         hydrographData['linkID'] = linkID
 
