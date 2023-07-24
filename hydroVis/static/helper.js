@@ -62,13 +62,13 @@ export function setupTooltip(vpWidth, vpHeight) {
 
     function setupTooltipContent(d) {
         if ('line' in d) {
-            return "Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
+            return "LinkID: " + d.linkID + "<br/>Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
                     d.line.coordinates[d.line.coordinates.length-1].map(x => x.toFixed(2)).join(', ') + 
                     (('qlink1' in d) ? ("<br/>Value: " + d3.format(".3")(d.qlink1) + " cu.m/s") : "") + (('z_gwsubbas' in d) ? "<br/>Value: " + d3.format(".3")(d.z_gwsubbas) + " m": "");
         }
         else {
-            const lon = (d[0] > 180) ? d[0] - 360 : ((d[0] < -180) ? d[0] + 360 : d[0]);
-            return "Gauge Location: <br/>(" + Math.round(lon * 100)/100 + ", " + Math.round(d[1] * 100)/100 + ")";
+            const lon = (d.location[0] > 180) ? d.location[0] - 360 : ((d.location[0] < -180) ? d.location[0] + 360 : d.location[0]);
+            return "Gauge Location: (" + Math.round(lon * 100)/100 + ", " + Math.round(d.location[1] * 100)/100 + ")<br/>LinkID: " + d.linkID;
         }
     }
 

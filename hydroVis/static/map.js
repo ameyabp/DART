@@ -623,7 +623,7 @@ export function drawGaugeLocations() {
                                 .duration(100)
                                 .attr("stroke-width", 1);
                             
-                                mapPlotParams.tooltip.display(d.location);
+                                mapPlotParams.tooltip.display(d);
                         })
                         .on("mousemove", function(event, d) {
                             mapPlotParams.tooltip.move(event)
