@@ -124,9 +124,9 @@ class mapPlotParams {
 
         var labelTitle = ''
         if (inflation)
-            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : 'Analysis'} for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} Inflation on ${wrfHydroStateVariables[stateVariable].commonName}`
+            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : daStage} for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} Inflation on ${wrfHydroStateVariables[stateVariable].commonName}`
         else
-            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : 'Analysis'} for ${wrfHydroStateVariables[stateVariable].commonName}`
+            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : daStage} for ${wrfHydroStateVariables[stateVariable].commonName}`
 
         ticks.push({
             x: 0,

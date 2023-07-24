@@ -173,16 +173,29 @@ class Ensemble:
         print(timestamp, aggregation, daStage, stateVariable, inflation)
 
         # construct required netcdf file name
-        if aggregation == 'mean' or aggregation == 'sd':                
+        if daStage == 'increment':
+            analysisFilename = f'analysis_mean.{timestamp}.nc'
+            forecastFilename = f'preassim_mean.{timestamp}.nc'
+
+            analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
+            forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+            assert(self.rl.numLinks == len(analysisData.variables[self.stateVariables[0]][:]))
+            assert(self.rl.numLinks == len(forecastData.variables[self.stateVariables[0]][:]))
+
+        elif aggregation == 'mean' or aggregation == 'sd':
             if inflation:
                 filename = f'{daStage}_{inflation}_{aggregation}.{timestamp}.nc'
             else:
                 filename = f'{daStage}_{aggregation}.{timestamp}.nc'
+
+            ncData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
+            assert(self.rl.numLinks == len(ncData.variables[self.stateVariables[0]][:]))
+            
         else:
             filename = f'{daStage}_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
 
-        ncData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
-        assert(self.rl.numLinks == len(ncData.variables[self.stateVariables[0]][:]))
+            ncData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
+            assert(self.rl.numLinks == len(ncData.variables[self.stateVariables[0]][:]))
 
         renderData = []
         for i in range(self.rl.numLinks):
@@ -196,7 +209,10 @@ class Ensemble:
                 dataPoint = {}
                 dataPoint['linkID'] = int(linkID)
 
-                dataPoint[stateVariable] = float(ncData.variables[stateVariable][linkID].item())
+                if daStage == 'increment':
+                    dataPoint[stateVariable] = float(analysisData.variables[stateVariable][linkID].item()) - float(forecastData.variables[stateVariable][linkID].item())
+                else:
+                    dataPoint[stateVariable] = float(ncData.variables[stateVariable][linkID].item())
             
                 lineData = {
                     'type': "LineString",

@@ -64,7 +64,7 @@ export function setupTooltip(vpWidth, vpHeight) {
         if ('line' in d) {
             return "Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
                     d.line.coordinates[d.line.coordinates.length-1].map(x => x.toFixed(2)).join(', ') + 
-                    (('qlink1' in d) ? ("<br/>Streamflow: " + d3.format(".3")(d.qlink1) + " cu.m/s") : "") + (('z_gwsubbas' in d) ? "<br/>Bucket: " + d3.format(".3")(d.z_gwsubbas) + " m": "");
+                    (('qlink1' in d) ? ("<br/>Value: " + d3.format(".3")(d.qlink1) + " cu.m/s") : "") + (('z_gwsubbas' in d) ? "<br/>Value: " + d3.format(".3")(d.z_gwsubbas) + " m": "");
         }
         else {
             const lon = (d[0] > 180) ? d[0] - 360 : ((d[0] < -180) ? d[0] + 360 : d[0]);
