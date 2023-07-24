@@ -49,8 +49,12 @@ export class uiParameters {
                 var lon = (locationSrc[0] + locationDst[0]) / 2;
                 var lat = (locationSrc[1] + locationDst[1]) / 2;
                 lon = lon > 180 ? lon - 360 : (lon < -180 ? lon + 360 : lon);
-                lon = Math.round(lon * 100) / 100
-                lat = Math.round(lat * 100) / 100
+                
+                lon = Math.round(lon * 100) / 100;
+                lat = Math.round(lat * 100) / 100;
+                
+                lon = lon < 0 ? `${Math.abs(lon)}° W` : `${lon}° E`;
+                lat = lon < 0 ? `${Math.abs(lat)}° S` : `${lat}° N`;
                 return `${linkID} at (${lon}, ${lat})`;
             })
     }

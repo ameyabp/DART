@@ -77,7 +77,7 @@ class mapPlotParams {
                 width: this.legendRectWidth,
                 height: this.legendRectMinHeight + this.legendRectMaxHeight * i/this.legendRectCount,
                 color: this.colorInterpolator(i/256)
-            }
+            };
             legend.push(rect);
         }
         return legend;
@@ -464,7 +464,7 @@ export async function setupBaseMap() {
         .attr("id", "mapLegend")
         .attr("transform", `translate(${mapPlotParams.legendLeftX}, ${mapPlotParams.legendTopY})`)
         .selectAll("rect")
-        .data(mapPlotParams.generateLegendRects())
+        .data(mapPlotParams.generateLegendRects(), d => d.color)
         .enter()
             .append("rect")
             .attr("x", function(d) {    return d.x; })
