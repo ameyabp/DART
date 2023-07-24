@@ -260,7 +260,7 @@ export async function drawHydrographStateVariable() {
         }
         else {
             yScale = d3.scaleLinear()
-                        .domain([d3.min(data.data, d => Math.min(d.forecast, d.analysis)), d3.max(data.data, d => Math.max(d.forecast, d.analysis))])
+                        .domain([d3.min(data.data, d => Math.min(d.forecastSdMin, d.analysisSdMin)), d3.max(data.data, d => Math.max(d.forecastSdMax, d.analysisSdMax))])
                         .range([hydrographPlotParams.plotHeight, 0])
                         .nice();
         }
@@ -291,13 +291,14 @@ export async function drawHydrographStateVariable() {
                 }
             )
 
-        // render data
+        // render forecast data
         d3.select('#hydrographSV-forecast-data')
-            .selectAll("path")
+            .selectAll("#dataPath")
             .data([data.data])
             .join(
                 function enter(enter) {
                     enter.append("path")
+                        .attr("id", "dataPath")
                         .style("fill", "none")
                         .style("stroke", "#33a02c")
                         .style("stroke-width", hydrographPlotParams.strokeWidth)
@@ -317,12 +318,42 @@ export async function drawHydrographStateVariable() {
                 }
             )
 
+            d3.select('#hydrographSV-forecast-data')
+                .selectAll("#sdPath")
+                .data([data.data])
+                .join(
+                    function enter(enter) {
+                        enter.append("path")
+                            .attr("id", "sdPath")
+                            .style("fill", "#33a02c")
+                            .style("stroke", "#33a02c")
+                            .style("stroke-width", 0)
+                            .style("opacity", 0.2)
+                            .attr("d", d3.area()
+                                        .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                        .y0(function(d) {    return yScale(d.forecastSdMin);  })
+                                        .y1(function(d) {    return yScale(d.forecastSdMax);  })
+                            );
+                    },
+                    function update(update) {
+                        update.transition()
+                            .duration(200)
+                            .attr("d", d3.area()
+                                        .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                        .y0(function(d) {    return yScale(d.forecastSdMin);  })
+                                        .y1(function(d) {    return yScale(d.forecastSdMax);  })
+                            );
+                    }
+                )
+
+        // render analysis data
         d3.select('#hydrographSV-analysis-data')
-            .selectAll("path")
+            .selectAll("#dataPath")
             .data([data.data])
             .join(
                 function enter(enter) {
                     enter.append("path")
+                        .attr("id", "dataPath")
                         .style("fill", "none")
                         .style("stroke", "#1f78b4")
                         .style("stroke-width", hydrographPlotParams.strokeWidth)
@@ -338,6 +369,34 @@ export async function drawHydrographStateVariable() {
                         .attr("d", d3.line()
                                     .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
                                     .y(function(d) {    return yScale(d.analysis);   })
+                        );
+                }
+            )
+
+        d3.select('#hydrographSV-analysis-data')
+            .selectAll("#sdPath")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("id", "sdPath")
+                        .style("fill", "#1f78b4")
+                        .style("stroke", "#1f78b4")
+                        .style("stroke-width", 0)
+                        .style("opacity", 0.2)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y0(function(d) {    return yScale(d.analysisSdMin);  })
+                                    .y1(function(d) {    return yScale(d.analysisSdMax);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y0(function(d) {    return yScale(d.analysisSdMin);  })
+                                    .y1(function(d) {    return yScale(d.analysisSdMax);  })
                         );
                 }
             )

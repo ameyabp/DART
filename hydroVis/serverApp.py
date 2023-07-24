@@ -190,7 +190,7 @@ class Ensemble:
 
             ncData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
             assert(self.rl.numLinks == len(ncData.variables[self.stateVariables[0]][:]))
-            
+
         else:
             filename = f'{daStage}_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
 
@@ -266,21 +266,58 @@ class Ensemble:
         hydrographData['data'] = []
     
         for timestamp in self.timestamps:
-            if aggregation == 'mean' or aggregation == 'sd':
-                analysisFilename = f'analysis_{aggregation}.{timestamp}.nc'
-                forecastFilename = f'preassim_{aggregation}.{timestamp}.nc'
-            else:
-                analysisFilename = f'analysis_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
-                forecastFilename = f'preassim_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
+            analysisSdFilename = f'analysis_sd.{timestamp}.nc'
+            forecastSdFilename = f'preassim_sd.{timestamp}.nc'
 
-            analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
-            forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+            analysisSdData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisSdFilename))
+            forecastSdData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastSdFilename))
 
-            hydrographData['data'].append({
-                'timestamp': timestamp,
-                'forecast': float(forecastData.variables[stateVariable][linkID].item()),
-                'analysis': float(analysisData.variables[stateVariable][linkID].item())
-            })
+            if aggregation != 'sd':
+                analysisMeanFilename = f'analysis_mean.{timestamp}.nc'
+                forecastMeanFilename = f'preassim_mean.{timestamp}.nc'
+
+                analysisMeanData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisMeanFilename))
+                forecastMeanData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastMeanFilename))
+
+                if aggregation != 'mean':
+                    analysisMemberFilename = f'analysis_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
+                    forecastMemberFilename = f'preassim_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
+
+                    analysisMemberData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisMemberFilename))
+                    forecastMemberData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastMemberFilename))
+
+            if aggregation == 'mean':
+                hydrographData['data'].append({
+                    'timestamp': timestamp,
+                    'forecast': float(forecastMeanData.variables[stateVariable][linkID].item()),
+                    'analysis': float(analysisMeanData.variables[stateVariable][linkID].item()),
+                    'forecastSdMax': float(forecastMeanData.variables[stateVariable][linkID].item()) + float(forecastSdData.variables[stateVariable][linkID].item()),
+                    'forecastSdMin': float(forecastMeanData.variables[stateVariable][linkID].item()) - float(forecastSdData.variables[stateVariable][linkID].item()),
+                    'analysisSdMax': float(analysisMeanData.variables[stateVariable][linkID].item()) + float(analysisSdData.variables[stateVariable][linkID].item()),
+                    'analysisSdMin': float(analysisMeanData.variables[stateVariable][linkID].item()) - float(analysisSdData.variables[stateVariable][linkID].item())
+                })
+            
+            elif aggregation == 'sd':
+                hydrographData['data'].append({
+                    'timestamp': timestamp,
+                    'forecast': float(forecastSdData.variables[stateVariable][linkID].item()),
+                    'analysis': float(analysisSdData.variables[stateVariable][linkID].item()),
+                    'forecastSdMax': float(forecastSdData.variables[stateVariable][linkID].item()),
+                    'forecastSdMin': float(forecastSdData.variables[stateVariable][linkID].item()),
+                    'analysisSdMax': float(analysisSdData.variables[stateVariable][linkID].item()),
+                    'analysisSdMin': float(analysisSdData.variables[stateVariable][linkID].item())
+                })
+
+            else: # aggregation == 'member'
+                hydrographData['data'].append({
+                    'timestamp': timestamp,
+                    'forecast': float(forecastMemberData.variables[stateVariable][linkID].item()),
+                    'analysis': float(analysisMemberData.variables[stateVariable][linkID].item()),
+                    'forecastSdMax': float(forecastMeanData.variables[stateVariable][linkID].item()) + float(forecastSdData.variables[stateVariable][linkID].item()),
+                    'forecastSdMin': float(forecastMeanData.variables[stateVariable][linkID].item()) - float(forecastSdData.variables[stateVariable][linkID].item()),
+                    'analysisSdMax': float(analysisMeanData.variables[stateVariable][linkID].item()) + float(analysisSdData.variables[stateVariable][linkID].item()),
+                    'analysisSdMin': float(analysisMeanData.variables[stateVariable][linkID].item()) - float(analysisSdData.variables[stateVariable][linkID].item())
+                })
 
         hydrographData['lon'] = float(self.rl.lon[linkID])
         hydrographData['lat'] = float(self.rl.lat[linkID])
