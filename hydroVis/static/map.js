@@ -37,7 +37,7 @@ class mapPlotParams {
                 .domain(data.toReversed());
     }
 
-    static sizeRange = [0.5, 10];
+    static sizeRange = [0.5, 2]
     static getMapSizeScale(data) {
         return d3.scaleLinear()
                 .domain(data)
@@ -363,7 +363,7 @@ export async function setupBaseMap() {
         })
 
     var projection = d3.geoNaturalEarth1()
-                        .rotate([dataCentroid[0], dataCentroid[1], 0])
+                        .rotate([-dataCentroid.lon, 0, 0])
                         .fitExtent([
                             [mapPlotParams.leftMargin, mapPlotParams.topMargin], 
                             [mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]
