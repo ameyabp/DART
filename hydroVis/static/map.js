@@ -29,7 +29,9 @@ class mapPlotParams {
         this.legendTopY = this.topMargin + (height - this.topMargin - this.bottomMargin) * 0.9;
     }
 
-    static colorInterpolator = d3.interpolatePlasma;
+    static colorInterpolator = d3.interpolateWarm;
+    // possible options for color schemes
+    // d3.interpolateWarm, d3.interpolateViridis, d3.interpolateCool, d3.interpolatePlasma
     static getMapColorScale(data) {
         return d3.scaleSequential(this.colorInterpolator)
                 .domain(data.toReversed());
@@ -361,7 +363,7 @@ export async function setupBaseMap() {
         })
 
     var projection = d3.geoNaturalEarth1()
-                        .rotate([91, 0, 0])
+                        .rotate([dataCentroid[0], dataCentroid[1], 0])
                         .fitExtent([
                             [mapPlotParams.leftMargin, mapPlotParams.topMargin], 
                             [mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]
