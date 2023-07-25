@@ -29,10 +29,10 @@ class mapPlotParams {
         this.legendTopY = this.topMargin + (height - this.topMargin - this.bottomMargin) * 0.9;
     }
 
-    static colorInterpolator = d3.interpolateWarm;
+    static colorInterpolator = d3.interpolatePlasma;
     static getMapColorScale(data) {
         return d3.scaleSequential(this.colorInterpolator)
-                .domain(data);
+                .domain(data.toReversed());
     }
 
     static sizeRange = [0.5, 10];
@@ -76,7 +76,7 @@ class mapPlotParams {
                 y: 0,
                 width: this.legendRectWidth,
                 height: this.legendRectMinHeight + this.legendRectMaxHeight * i/this.legendRectCount,
-                color: this.colorInterpolator(i/256)
+                color: this.colorInterpolator((this.legendRectCount-i)/256)
             };
             legend.push(rect);
         }

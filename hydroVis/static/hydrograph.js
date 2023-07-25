@@ -254,13 +254,19 @@ export async function drawHydrographStateVariable() {
         var yScale = null;
         if (readFromGaugeLocation && stateVariable === 'qlink1' && aggregation !== 'sd') {
             yScale = d3.scaleLinear()
-                        .domain([d3.min(data.data, d => Math.min(d.forecastSdMin, d.analysisSdMin, d.observation)), d3.max(data.data, d => Math.max(d.forecastSdMax, d.analysisSdMax, d.observation))])
+                        .domain([
+                            d3.min(data.data, d => Math.min(d.forecastSdMin, d.analysisSdMin, d.forecast, d.analysis, d.observation)), 
+                            d3.max(data.data, d => Math.max(d.forecastSdMax, d.analysisSdMax, d.forecast, d.analysis, d.observation))
+                        ])
                         .range([hydrographPlotParams.plotHeight, 0])
                         .nice();
         }
         else {
             yScale = d3.scaleLinear()
-                        .domain([d3.min(data.data, d => Math.min(d.forecastSdMin, d.analysisSdMin)), d3.max(data.data, d => Math.max(d.forecastSdMax, d.analysisSdMax))])
+                        .domain([
+                            d3.min(data.data, d => Math.min(d.forecastSdMin, d.analysisSdMin, d.forecast, d.analysis)), 
+                            d3.max(data.data, d => Math.max(d.forecastSdMax, d.analysisSdMax, d.forecast, d.analysis))
+                        ])
                         .range([hydrographPlotParams.plotHeight, 0])
                         .nice();
         }
