@@ -97,3 +97,7 @@ export const wrfHydroStateVariables = {
         description: 'Elevation of water in the basin or bucket'
     }
 }
+
+export function captializeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}

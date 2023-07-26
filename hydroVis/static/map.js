@@ -1,5 +1,5 @@
 import { uiParameters } from './uiParameters.js';
-import { setupTooltip, wrfHydroStateVariables } from './helper.js';
+import { setupTooltip, wrfHydroStateVariables, captializeFirstLetter } from './helper.js';
 import { drawDistribution } from "./distribution.js";
 import { drawHydrographStateVariable, drawHydrographInflation } from "./hydrograph.js";
 
@@ -126,16 +126,23 @@ class mapPlotParams {
             );
 
         var labelTitle = ''
-        if (inflation)
-            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : daStage} for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} Inflation on ${wrfHydroStateVariables[stateVariable].commonName}`
-        else
-            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : daStage} for ${wrfHydroStateVariables[stateVariable].commonName}`
+        var subTitle = ''
+        if (inflation) {
+            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : captializeFirstLetter(daStage)} for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} Inflation on ${wrfHydroStateVariables[stateVariable].commonName}`;
+        }
+        else {
+            labelTitle = `${aggregation == 'mean' ? 'Mean' : 'Standard Deviation'} of ${daStage == 'preassim' ? 'Forecast' : captializeFirstLetter(daStage)} for ${wrfHydroStateVariables[stateVariable].commonName}`;
+            subTitle = 'in ' + wrfHydroStateVariables[stateVariable].units;
+        }
 
         if (aggregation != 'mean' && aggregation != 'sd') {
-            if (inflation)
-                labelTitle = `${daStage == 'preassim' ? 'Forecast' : daStage} for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} Inflation on ${wrfHydroStateVariables[stateVariable].commonName} for Member ${aggregation}`
-            else
-                labelTitle = `${daStage == 'preassim' ? 'Forecast' : daStage} for ${wrfHydroStateVariables[stateVariable].commonName} for Member ${aggregation}`
+            if (inflation) {
+                labelTitle = `${daStage == 'preassim' ? 'Forecast' : captializeFirstLetter(daStage)} for ${inflation == 'priorinf' ? 'Prior' : 'Posterior'} Inflation on ${wrfHydroStateVariables[stateVariable].commonName} for Member ${aggregation}`;
+            }
+            else {
+                labelTitle = `${daStage == 'preassim' ? 'Forecast' : captializeFirstLetter(daStage)} for ${wrfHydroStateVariables[stateVariable].commonName} for Member ${aggregation}`;
+                subTitle = 'in ' + wrfHydroStateVariables[stateVariable].units;
+            }
         }
 
         ticks.push({
@@ -149,7 +156,7 @@ class mapPlotParams {
         ticks.push({
             x: 0,
             y1: this.legendTitleVerticalOffset/2,
-            label: 'in ' + wrfHydroStateVariables[stateVariable].units,
+            label: subTitle,
             fontSize: this.legendTickFontSize,
             textType: 'legendSubtitle'
         })
@@ -634,14 +641,13 @@ export function drawGaugeLocations() {
                         })
                         .attr("r", 2)
                         .attr("stroke-width", 0)
-                        .attr("stroke", "black")
                         .style("fill", "#e31a1c")
                         .style("opacity", 0.5)
                         .on("mouseover", function(event, d) {
                             d3.select(this)
                                 .transition()
                                 .duration(100)
-                                .attr("stroke-width", 1);
+                                .attr("r", 3);
                             
                                 mapPlotParams.tooltip.display(d);
                         })
@@ -652,7 +658,7 @@ export function drawGaugeLocations() {
                             d3.select(this)
                                 .transition()
                                 .duration(100)
-                                .attr("stroke-width", 0);
+                                .attr("r", 2);
 
                             mapPlotParams.tooltip.hide();
                         })
