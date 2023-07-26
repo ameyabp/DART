@@ -8,8 +8,8 @@ function updateStateVariable(stateVariable) {
     uiParameters.updateStateVariable(stateVariable);
     // call all the relevant renderer functions
     drawMapData();
-    drawDistribution();
     if (uiParameters.linkID) {
+        drawDistribution();
         drawHydrographStateVariable();
         drawHydrographInflation();
     }
@@ -49,7 +49,9 @@ function updateTimestamp(timestamp) {
     uiParameters.updateTimestamp(timestamp);
     // call all the relevant renderer functions
     drawMapData();
-    drawDistribution();
+    if (uiParameters.linkID) {
+        drawDistribution();
+    }
 }
 
 async function setupControlPanel() {

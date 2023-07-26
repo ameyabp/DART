@@ -14,6 +14,7 @@ class mapPlotParams {
     // to position it in the center of the map projection
     // specifed as a percentage of the data bounding box width and height
     static projectionExtentBboxPadding = 20;
+    static mapBorderStrokeWidth = 1;
     
     static topMargin = 0;
     static bottomMargin = 50;
@@ -37,7 +38,7 @@ class mapPlotParams {
                 .domain(data.toReversed());
     }
 
-    static sizeRange = [0.5, 2]
+    static sizeRange = [0.5, 5]
     static getMapSizeScale(data) {
         return d3.scaleLinear()
                 .domain(data)
@@ -391,7 +392,7 @@ export async function setupBaseMap() {
                     [mapPlotParams.leftMargin, mapPlotParams.topMargin], 
                     [mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]
                 ])
-                .scaleExtent([1,6])
+                .scaleExtent([1,8])
                 .translateExtent([
                     [mapPlotParams.leftMargin, mapPlotParams.topMargin],
                     [mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]
@@ -452,7 +453,7 @@ export async function setupBaseMap() {
         svgMap.attr("transform", event.transform);
 
         axes.gY.call(axes.yAxis.scale(axes.yScale.copy().domain([projection.invert(event.transform.invert([mapPlotParams.leftMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]))[1], projection.invert(event.transform.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin]))[1]])))
-            .call(g => g.select(".domain").remove());
+                .call(g => g.select(".domain").remove());
 
         d3.selectAll("#lon-axis>.tick>text")
             .style("font-size", mapPlotParams.mapAxesTickLabelFontSize);
@@ -483,6 +484,21 @@ export async function setupBaseMap() {
             .style("stroke-width", 0)
             .style("fill", function(d) {    return d.color; })
             .style("opcaity", 1);
+
+    // map border
+    d3.select("#geoMap-svg")
+        .append("g")
+        .attr("id", "mapBorder")
+        .attr("transform", `translate(${mapPlotParams.leftMargin}, ${mapPlotParams.topMargin})`)
+        .append("rect")
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("width", mapPlotParams.mapWidth - mapPlotParams.rightMargin - mapPlotParams.leftMargin)
+            .attr("height", mapPlotParams.mapHeight - mapPlotParams.bottomMargin - mapPlotParams.topMargin)
+            .attr("fill", "none")
+            .attr("stroke-width", mapPlotParams.mapBorderStrokeWidth)
+            .attr("stroke", "black")
+            .attr("pointer-events", "none");    // to enable hover, zoom and pan on the map region
 }
 
 export async function drawMapData() {
@@ -526,6 +542,8 @@ export async function drawMapData() {
                             return sizeScale(d[stateVariable]);
                         })
                         .attr("stroke", function(d) {
+                            if (d.linkID == 1666)
+                                return "black";
                             return colorScale(d[stateVariable]);
                         })
                         .style("fill", "None")

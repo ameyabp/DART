@@ -410,26 +410,31 @@ export async function drawHydrographStateVariable() {
         if (readFromGaugeLocation && stateVariable === 'qlink1' && aggregation !== 'sd') {
             d3.select('#hydrographSV-observation-data')
                 .selectAll("path")
-                .data([data.data])
+                .data(data.data)
                 .join(
                     function enter(enter) {
                         enter.append("path")
-                            .style("fill", "none")
                             .style("stroke", "#e31a1c")
                             .style("stroke-width", hydrographPlotParams.strokeWidth)
                             .style("opacity", 0.5)
-                            .attr("d", d3.line()
-                                        .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
-                                        .y(function(d) {    return yScale(d.observation);  })
-                            );
+                            .attr("d", d3.symbol().size(16).type(d3.symbolTimes))
+                            .attr("transform", function(d) {
+                                return `translate(
+                                    ${hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp))} ,
+                                    ${yScale(d.observation)}
+                                )`;
+                            });
                     },
                     function update(update) {
                         update.transition()
                             .duration(200)
-                            .attr("d", d3.line()
-                                        .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
-                                        .y(function(d) {    return yScale(d.observation)   })
-                            );
+                            .attr("d", d3.symbol().size(16).type(d3.symbolTimes))
+                            .attr("transform", function(d) {
+                                return `translate(
+                                    ${hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp))} ,
+                                    ${yScale(d.observation)}
+                                )`;
+                            });
                     }
                 )
         }
