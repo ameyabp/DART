@@ -1,5 +1,5 @@
 import { uiParameters } from './uiParameters.js';
-import { setupTooltip, wrfHydroStateVariables, captializeFirstLetter } from './helper.js';
+import { setupTooltip, wrfHydroStateVariables, captializeFirstLetter, downloadSvg } from './helper.js';
 import { drawDistribution } from "./distribution.js";
 import { drawHydrographStateVariable, drawHydrographInflation } from "./hydrograph.js";
 
@@ -8,26 +8,36 @@ class mapPlotParams {
         'Alaska', 'Hawaii', 'Puerto Rico', 'American Samoa', 'Guam', 'Commonwealth of the Northern Mariana Islands', 'United States Virgin Islands'
     ];
 
+    // axes params
     static mapAxesTickLabelFontSize = 10;
     static mapAxesLabelFontSize = 15;
+    static mapAxesLabelPadding = 5;
+    static mapBorderStrokeWidth = 1;
+    
+    // margins
+    static topMargin = 10;
+    static bottomMargin = 50;
+    static leftMargin = 75;
+    static rightMargin = 10;
+    static mapWidth = 0;
+    static mapHeight = 0;
     // the padding to be added around the region of interest
     // to position it in the center of the map projection
     // specifed as a percentage of the data bounding box width and height
     static projectionExtentBboxPadding = 20;
-    static mapBorderStrokeWidth = 1;
-    
-    static topMargin = 0;
-    static bottomMargin = 50;
-    static leftMargin = 75;
-    static rightMargin = 0;
-    static mapWidth = 0;
-    static mapHeight = 0;
+
+    // map visualization download button params
+    static buttonLeftX = 0;
+    static buttonTopY = this.topMargin;
+    static buttonWidth = this.leftMargin * 0.4;
+    static buttonHeight = 0;
 
     static setMapSize(width, height) {
-        this.mapWidth = width;
-        this.mapHeight = height;
-        this.legendLeftX = this.leftMargin + (width - this.leftMargin - this.rightMargin) * 0.02;
-        this.legendTopY = this.topMargin + (height - this.topMargin - this.bottomMargin) * 0.9;
+        this.mapWidth = width - this.leftMargin - this.rightMargin;
+        this.mapHeight = height - this.topMargin - this.bottomMargin;
+        this.legendLeftX = this.leftMargin + this.mapWidth * 0.02;
+        this.legendTopY = this.topMargin + this.mapHeight * 0.9;
+        this.buttonHeight = this.mapHeight * 0.05;
     }
 
     static colorInterpolator = d3.interpolateWarm;
@@ -198,13 +208,13 @@ function setupAxes() {
         .attr("x", 0)
         .attr("y", 0)
         .attr("width", mapPlotParams.leftMargin)
-        .attr("height", mapPlotParams.mapHeight)
+        .attr("height", mapPlotParams.topMargin+mapPlotParams.mapHeight+mapPlotParams.bottomMargin)
         .style("fill", "white");
 
     yRect.append("text")
         .text("LATITUDE")
-        .attr("x", -(mapPlotParams.mapHeight-mapPlotParams.bottomMargin)/2)
-        .attr("y", 0)
+        .attr("x", -mapPlotParams.topMargin-mapPlotParams.mapHeight/2)
+        .attr("y", mapPlotParams.mapAxesLabelPadding)
         .attr("font-size", mapPlotParams.mapAxesLabelFontSize)
         .attr("text-anchor", "middle")
         .attr("alignment-baseline", "hanging")
@@ -216,26 +226,46 @@ function setupAxes() {
 
     xRect.append("rect")
         .attr("x", 0)
-        .attr("y", mapPlotParams.mapHeight-mapPlotParams.bottomMargin)
-        .attr("width", mapPlotParams.mapWidth)
+        .attr("y", mapPlotParams.topMargin+mapPlotParams.mapHeight)
+        .attr("width", mapPlotParams.leftMargin + mapPlotParams.mapWidth + mapPlotParams.rightMargin)
         .attr("height", mapPlotParams.bottomMargin)
         .style("fill", "white");
 
     xRect.append("text")
         .text("LONGITUDE")
-        .attr("x", mapPlotParams.leftMargin + (mapPlotParams.mapWidth-mapPlotParams.rightMargin)/2)
-        .attr("y", mapPlotParams.mapHeight)
+        .attr("x", mapPlotParams.leftMargin + mapPlotParams.mapWidth/2)
+        .attr("y", mapPlotParams.topMargin + mapPlotParams.mapHeight + mapPlotParams.bottomMargin - mapPlotParams.mapAxesLabelPadding)
         .attr("font-size", mapPlotParams.mapAxesLabelFontSize)
         .attr("text-anchor", "middle")
         .attr("alignment-baseline", "baseline");
 
+    // top clip rect
+    d3.select("#geoMap-svg")
+        .append("g")
+        .append("rect")
+        .attr("x", mapPlotParams.leftMargin)
+        .attr("y", 0)
+        .attr("width", mapPlotParams.mapWidth + mapPlotParams.rightMargin)
+        .attr("height", mapPlotParams.topMargin)
+        .style("fill", "white");
+
+    // right clip rect
+    d3.select("#geoMap-svg")
+        .append("g")
+        .append("rect")
+        .attr("x", mapPlotParams.leftMargin + mapPlotParams.mapWidth)
+        .attr("y", 0)
+        .attr("width", mapPlotParams.rightMargin)
+        .attr("height", mapPlotParams.topMargin + mapPlotParams.mapHeight)
+        .style("fill", "white");
+
     // latitiude axis
     const yScale = d3.scaleLinear()
-                .domain([mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin])[1], mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin])[1]])
+                .domain([mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight])[1], mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin])[1]])
                 .interpolate(function(a, b) {
                     return function(t) {
                         // denormalize t to get the actual lat value being queried for
-                        var lat1 = mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin])[1];
+                        var lat1 = mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight])[1];
                         var latn = mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin])[1];
                         var lat = (latn - lat1) * t + lat1;
 
@@ -265,14 +295,14 @@ function setupAxes() {
 
     // longitude
     const xScale = d3.scaleLinear()
-                .domain([mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin])[0], mapPlotParams.projection.invert([mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin])[0]])
-                .range([mapPlotParams.leftMargin, mapPlotParams.mapWidth-mapPlotParams.rightMargin]);
+                .domain([mapPlotParams.projection.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight])[0], mapPlotParams.projection.invert([mapPlotParams.leftMargin+mapPlotParams.mapWidth, mapPlotParams.topMargin+mapPlotParams.mapHeight])[0]])
+                .range([mapPlotParams.leftMargin, mapPlotParams.leftMargin+mapPlotParams.mapWidth]);
 //                 .interpolate(function(a, b) {
 //                     return function(t) {
 //                         // denormalize t to get the actual lon value being queried for
-//                         var lon1 = projection.invert([mapPlotParams.leftMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin])[0];
-//                         var lat = projection.invert([mapPlotParams.leftMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin])[1];
-//                         var lonn = projection.invert([mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin])[0];
+//                         var lon1 = projection.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight])[0];
+//                         var lat = projection.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight])[1];
+//                         var lonn = projection.invert([mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight])[0];
 //                         var lon = (lonn - lon1) * t + lon1;
 // console.log(lon, lat, t)
 //                         // map pixel to longitude, latitude matters here at least for naturalEarth projection
@@ -291,7 +321,7 @@ function setupAxes() {
 
     const gX = d3.select("#geoMap-svg")
                 .append("g")
-                .attr("transform", `translate(0, ${mapPlotParams.mapHeight-mapPlotParams.bottomMargin})`)
+                .attr("transform", `translate(0, ${mapPlotParams.topMargin+mapPlotParams.mapHeight})`)
                 .attr("id", "lon-axis")
                 .call(xAxis)
                 .call(g => g.select(".domain").remove());
@@ -351,10 +381,10 @@ export async function setupBaseMap() {
         return !mapPlotParams.nonConusStates.includes(d.properties.name);
     });
 
-    const viewportWidth = document.getElementById('geoMap-div').clientWidth;
-    const viewportHeight = document.getElementById('geoMap-div').clientHeight;
+    const mapDivWidth = Math.floor(document.getElementById('geoMap-div').clientWidth);
+    const mapDivHeight = Math.floor(document.getElementById('geoMap-div').clientHeight);
 
-    mapPlotParams.setMapSize(viewportWidth, viewportHeight);
+    mapPlotParams.setMapSize(mapDivWidth, mapDivHeight);
 
     var projectionExtentBBox = null;
     var dataCentroid = null;
@@ -374,7 +404,7 @@ export async function setupBaseMap() {
                         .rotate([-dataCentroid.lon, 0, 0])
                         .fitExtent([
                             [mapPlotParams.leftMargin, mapPlotParams.topMargin], 
-                            [mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]
+                            [mapPlotParams.leftMargin+mapPlotParams.mapWidth, mapPlotParams.topMargin+mapPlotParams.mapHeight]
                         ], projectionExtentBBox);
 
     var path = d3.geoPath().projection(projection);
@@ -385,9 +415,10 @@ export async function setupBaseMap() {
     var svgMap = d3.select("#geoMap-div")
                     .append("svg")
                     .attr("id", "geoMap-svg")
-                    .attr("width", mapPlotParams.mapWidth)
-                    .attr("height", mapPlotParams.mapHeight)
-                    .attr("viewBox", [0, 0, mapPlotParams.mapWidth, mapPlotParams.mapHeight])
+                    .style("background-color", "#fff")
+                    .attr("width", mapPlotParams.leftMargin+mapPlotParams.mapWidth+mapPlotParams.rightMargin)
+                    .attr("height", mapPlotParams.topMargin+mapPlotParams.mapHeight+mapPlotParams.bottomMargin)
+                    .attr("viewBox", [0, 0, mapPlotParams.leftMargin+mapPlotParams.mapWidth+mapPlotParams.rightMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight+mapPlotParams.bottomMargin])
                     .append("g")
                     .attr("id", "geo-zoom");
 
@@ -397,12 +428,12 @@ export async function setupBaseMap() {
                 // })
                 .extent([
                     [mapPlotParams.leftMargin, mapPlotParams.topMargin], 
-                    [mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]
+                    [mapPlotParams.leftMargin+mapPlotParams.mapWidth, mapPlotParams.topMargin+mapPlotParams.mapHeight]
                 ])
                 .scaleExtent([1,8])
                 .translateExtent([
                     [mapPlotParams.leftMargin, mapPlotParams.topMargin],
-                    [mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]
+                    [mapPlotParams.leftMargin+mapPlotParams.mapWidth, mapPlotParams.topMargin+mapPlotParams.mapHeight]
                 ])
                 .on("zoom", zoomed);
 
@@ -413,10 +444,10 @@ export async function setupBaseMap() {
         .append("rect")
         .attr("x", mapPlotParams.leftMargin)
         .attr("y", mapPlotParams.topMargin)
-        .attr("width", mapPlotParams.mapWidth-mapPlotParams.leftMargin-mapPlotParams.rightMargin)
-        .attr("height", mapPlotParams.mapHeight-mapPlotParams.topMargin-mapPlotParams.bottomMargin)
+        .attr("width", mapPlotParams.mapWidth)
+        .attr("height", mapPlotParams.mapHeight)
         .attr("stroke-width", 0)
-        .style("fill", "rgba(138, 210, 255, 0.4)");
+        .style("fill", "#d0edff");  // blue for sea
     
     // lon-lat grid
     svgMap.append("g")
@@ -459,20 +490,20 @@ export async function setupBaseMap() {
     function zoomed(event) {
         svgMap.attr("transform", event.transform);
 
-        axes.gY.call(axes.yAxis.scale(axes.yScale.copy().domain([projection.invert(event.transform.invert([mapPlotParams.leftMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]))[1], projection.invert(event.transform.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin]))[1]])))
+        axes.gY.call(axes.yAxis.scale(axes.yScale.copy().domain([projection.invert(event.transform.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight]))[1], projection.invert(event.transform.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin]))[1]])))
                 .call(g => g.select(".domain").remove());
 
         d3.selectAll("#lon-axis>.tick>text")
             .style("font-size", mapPlotParams.mapAxesTickLabelFontSize);
 
-        axes.gX.call(axes.xAxis.scale(axes.xScale.copy().domain([projection.invert(event.transform.invert([mapPlotParams.leftMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]))[0], projection.invert(event.transform.invert([mapPlotParams.mapWidth-mapPlotParams.rightMargin, mapPlotParams.mapHeight-mapPlotParams.bottomMargin]))[0]])))
+        axes.gX.call(axes.xAxis.scale(axes.xScale.copy().domain([projection.invert(event.transform.invert([mapPlotParams.leftMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight]))[0], projection.invert(event.transform.invert([mapPlotParams.leftMargin+mapPlotParams.mapWidth, mapPlotParams.topMargin+mapPlotParams.mapHeight]))[0]])))
             .call(g => g.select(".domain").remove());
 
         d3.selectAll("#lat-axis>.tick>text")
             .style("font-size", mapPlotParams.mapAxesTickLabelFontSize);
     }
 
-    const tooltip = setupTooltip(mapPlotParams.mapWidth, mapPlotParams.mapHeight);
+    const tooltip = setupTooltip(mapPlotParams.leftMargin+mapPlotParams.mapWidth+mapPlotParams.rightMargin, mapPlotParams.topMargin+mapPlotParams.mapHeight+mapPlotParams.bottomMargin);
     mapPlotParams.setTooltip(tooltip);
 
     // legend
@@ -500,12 +531,27 @@ export async function setupBaseMap() {
         .append("rect")
             .attr("x", 0)
             .attr("y", 0)
-            .attr("width", mapPlotParams.mapWidth - mapPlotParams.rightMargin - mapPlotParams.leftMargin)
-            .attr("height", mapPlotParams.mapHeight - mapPlotParams.bottomMargin - mapPlotParams.topMargin)
+            .attr("width", mapPlotParams.mapWidth)
+            .attr("height", mapPlotParams.mapHeight)
             .attr("fill", "none")
             .attr("stroke-width", mapPlotParams.mapBorderStrokeWidth)
             .attr("stroke", "black")
             .attr("pointer-events", "none");    // to enable hover, zoom and pan on the map region
+
+    // download button
+    d3.select("#yAxis-rect")
+        .append("g")
+        .attr("id", "download-button")
+        .attr("class", "download-button")
+        .append("image")
+        .attr("x", mapPlotParams.buttonLeftX)
+        .attr("y", mapPlotParams.buttonTopY)
+        .attr("width", mapPlotParams.buttonWidth)
+        .attr("height", mapPlotParams.buttonHeight)
+        .attr("xlink:href", "static/download.png")
+        .on("click", function() {
+            downloadSvg("geoMap-svg");
+        });
 }
 
 export async function drawMapData() {

@@ -1,9 +1,5 @@
 #geoMap-div {
-    /* position: relative;
-    top: 0;
-    left: 0; */
     height: 60vh;
-    padding-top: 5px;
 }
 
 #tooltip-div {
@@ -18,7 +14,6 @@
 #map-controlPanel-div, #timestamp-display-div {
     padding-top: 5px;
     padding-left: 20px;
-    /* padding-right: 5px; */
 }
 
 #map-controlPanel-div > .row {
@@ -26,6 +21,9 @@
     padding: 0% 0% 7% 0%;
 }
 
+.download-button {
+    cursor: pointer;
+}
 
 #timeSlider-div {
     text-align: left;

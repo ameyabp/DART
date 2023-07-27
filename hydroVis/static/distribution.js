@@ -1,11 +1,11 @@
-import { wrfHydroStateVariables } from "./helper.js";
+import { wrfHydroStateVariables, downloadSvg } from "./helper.js";
 import { uiParameters } from "./uiParameters.js";
 
 class distributionPlotParams {
     static leftMargin = 40;
     static bottomMargin = 40;
     static topMargin = 20;
-    static rightMargin = 10;
+    static rightMargin = 40;
 
     static divWidth = 0;
     static divHeight = 0;
@@ -15,12 +15,20 @@ class distributionPlotParams {
 
     static axesLabelFontSize = 15;
     static axesTickLabelFontSize = 10;
+    static axesLabelPadding = 5;
+    static chartTitlePadding = 5;
 
     static yScale = null;
     static yAxis = null;
 
     static xScale = null;
     static xAxis = null;
+
+    // distribution plot download button params
+    static buttonTopY = 0;
+    static buttonLeftX = 0;
+    static buttonWidth = this.leftMargin * 0.6;
+    static buttonHeight = this.topMargin * 0.95;
 
     static setDivWidth(width) {
         this.divWidth = width;
@@ -65,13 +73,14 @@ class distributionPlotParams {
 
 export function setupDistributionPlot() {
     distributionPlotParams.setDivHeight(document.getElementById("distribution-div").clientHeight);
-    distributionPlotParams.setDivWidth(document.getElementById("distribution-div").clientWidth * 0.95);
+    distributionPlotParams.setDivWidth(document.getElementById("distribution-div").clientWidth);
 
     var distributionSvg = d3.select(`#distribution-div`)
                             .append("svg")
                             .attr("width", "100%")
                             .attr("height", "100%")
-                            .attr("id", `distribution-svg`);
+                            .attr("id", `distribution-svg`)
+                            .style("background-color", "#fff");
 
     // setup y axis
     distributionSvg.append("g")
@@ -109,7 +118,7 @@ export function setupDistributionPlot() {
     distributionSvg.append("text")
                 .text("Ensemble Model Outputs")
                 .attr("x", distributionPlotParams.leftMargin + (distributionPlotParams.divWidth-distributionPlotParams.leftMargin-distributionPlotParams.rightMargin)/2)
-                .attr("y", distributionPlotParams.divHeight-5)
+                .attr("y", distributionPlotParams.divHeight-distributionPlotParams.axesLabelPadding)
                 .attr("font-size", distributionPlotParams.axesLabelFontSize)
                 .attr("text-anchor", "middle")
                 .attr("alignment-baseline", "baseline");
@@ -203,7 +212,7 @@ export function setupDistributionPlot() {
     // setup details text panel
     distributionSvg.append("text")
                     .attr("id", `distribution-text`)
-                    .attr("transform", `translate(${distributionPlotParams.leftMargin}, 0)`)
+                    .attr("transform", `translate(${distributionPlotParams.leftMargin}, ${distributionPlotParams.chartTitlePadding})`)
                     .attr("text-anchor", "start")
                     .attr("alignment-baseline", "hanging")
                     .text("Distribution of model outputs")
@@ -218,6 +227,21 @@ export function setupDistributionPlot() {
     //             })
 
     // distributionSvg.call(zoom);
+    
+    // download button
+    d3.select("#distribution-svg")
+        .append("g")
+        .attr("id", "download-button")
+        .attr("class", "download-button")
+        .append("image")
+        .attr("x", distributionPlotParams.buttonLeftX)
+        .attr("y", distributionPlotParams.buttonTopY)
+        .attr("width", distributionPlotParams.buttonWidth)
+        .attr("height", distributionPlotParams.buttonHeight)
+        .attr("xlink:href", "static/download.png")
+        .on("click", function() {
+            downloadSvg("distribution-svg", distributionPlotParams.divWidth, distributionPlotParams.divHeight);
+        });
 }
 
 function zoomDistributionPlot(event, plotID) {

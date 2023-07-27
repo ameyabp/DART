@@ -1,3 +1,5 @@
+import { uiParameters } from './uiParameters.js';
+
 class Tooltip {
     constructor(selection, callback, vpWidth, vpHeight) {
         if (!selection || !selection.size()) {
@@ -100,4 +102,57 @@ export const wrfHydroStateVariables = {
 
 export function captializeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+export function downloadSvg(svgID, svgWidth=0, svgHeight=0) {
+    var filename = ''
+    switch (svgID) {
+        case 'geoMap-svg':
+            filename = `hydroVis_map_${uiParameters.stateVariable}_${uiParameters.aggregation}_${uiParameters.daStage}_${uiParameters.inflation}_${uiParameters.timestamp}.png`;
+            break;
+        case 'hydrographSV-svg':
+            filename = `hydroVis_hydrograph_stateVariable_${uiParameters.stateVariable}_${uiParameters.aggregation}.png`;
+            break;
+        case 'hydrographInf-svg':
+            filename = `hydroVis_hydrograph_inflation_${uiParameters.stateVariable}_${uiParameters.inflation}.png`;
+            break;
+        case 'distribution-svg':
+            filename = `hydroVis_distribution_${uiParameters.stateVariable}_${uiParameters.timestamp}.png`;
+            break;
+    }
+
+    var svgElement = d3.select(`#${svgID}`).node().cloneNode(true);
+    svgElement.getElementById("download-button").remove();
+
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const blob = new Blob([svgData], {  type: "image/svg+xml" });
+    const svgDataUrl = URL.createObjectURL(blob);
+
+    const image = new Image();
+    image.addEventListener("load", () => {
+        const width = svgWidth == 0 ? svgElement.getAttribute("width") : svgWidth;  // getAttribute does not work for svg which have width and height set relative to the parent div
+        const height = svgHeight == 0 ? svgElement.getAttribute("height") : svgHeight;
+        const canvas = document.createElement("canvas");
+
+        canvas.setAttribute("width", width);
+        canvas.setAttribute("height", height);
+
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL("image/png");
+
+        // download the image
+        var a = document.createElement('a');
+        a.download = filename;
+        a.href = dataUrl;
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        URL.revokeObjectURL(blob);
+    });
+
+    image.src = svgDataUrl;
 }

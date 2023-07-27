@@ -7,7 +7,7 @@ import numpy as np
 import netCDF4 as nc
 from flask import Flask, render_template, request
 
-app = Flask('dartVis')
+app = Flask('hydroVis')
 
 class RouteLinkData:
     def __init__(self, routeLinkFileName):

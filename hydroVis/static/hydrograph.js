@@ -1,11 +1,11 @@
-import { getJSDateObjectFromTimestamp, wrfHydroStateVariables } from "./helper.js";
+import { getJSDateObjectFromTimestamp, wrfHydroStateVariables, downloadSvg } from "./helper.js";
 import { uiParameters } from "./uiParameters.js";
 
 class hydrographPlotParams {
     static leftMargin = 50;
     static bottomMargin = 40;
     static topMargin = 20;
-    static rightMargin = 10;
+    static rightMargin = 40;
     
     static divWidth = 0;
     static divHeight = 0;
@@ -15,6 +15,8 @@ class hydrographPlotParams {
 
     static axesLabelFontSize = 15;
     static axesTickLabelFontSize = 10;
+    static axesLabelPadding = 5;
+    static chartTitlePadding = 5;
 
     static xScale = null;
     static yAxis = null;
@@ -23,6 +25,12 @@ class hydrographPlotParams {
 
     static legendRectWidth = 0;
     static legendRectHeight = 0;
+
+    // distribution plot download button params
+    static buttonTopY = 0;
+    static buttonLeftX = 0;
+    static buttonWidth = this.leftMargin * 0.6;
+    static buttonHeight = this.topMargin * 0.95;
     
     static setDivWidth(width) {
         this.divWidth = width;
@@ -73,7 +81,8 @@ function setupHydrographPlot(id, timestamps) {
                             .append("svg")
                             .attr("width", "100%")
                             .attr("height", "100%")
-                            .attr("id", `${id}-svg`);
+                            .attr("id", `${id}-svg`)
+                            .style("background-color", "#fff");
 
     // setup y axis
     hydrographSvg.append("g")
@@ -101,7 +110,7 @@ function setupHydrographPlot(id, timestamps) {
     hydrographSvg.append("text")
                 .text("Time")
                 .attr("x", hydrographPlotParams.leftMargin + (hydrographPlotParams.divWidth-hydrographPlotParams.leftMargin-hydrographPlotParams.rightMargin)/2)
-                .attr("y", hydrographPlotParams.divHeight-5)
+                .attr("y", hydrographPlotParams.divHeight-hydrographPlotParams.axesLabelPadding)
                 .attr("font-size", hydrographPlotParams.axesLabelFontSize)
                 .attr("text-anchor", "middle")
                 .attr("alignment-baseline", "baseline");
@@ -197,12 +206,27 @@ function setupHydrographPlot(id, timestamps) {
     // setup details text panel
     hydrographSvg.append("text")
                 .attr("id", `${id}-text`)
-                .attr("transform", `translate(${hydrographPlotParams.leftMargin}, 0)`)
+                .attr("transform", `translate(${hydrographPlotParams.leftMargin}, ${hydrographPlotParams.chartTitlePadding})`)
                 .attr("text-anchor", "start")
                 .attr("alignment-baseline", "hanging")
                 .text(function() {
                     return id === 'hydrographSV' ? "Hydrograph for state variable" : "Hydrograph for mean inflation"
-                })
+                });
+
+    // download button
+    d3.select(`#${id}-svg`)
+        .append("g")
+        .attr("id", "download-button")
+        .attr("class", "download-button")
+        .append("image")
+        .attr("x", hydrographPlotParams.buttonLeftX)
+        .attr("y", hydrographPlotParams.buttonTopY)
+        .attr("width", hydrographPlotParams.buttonWidth)
+        .attr("height", hydrographPlotParams.buttonHeight)
+        .attr("xlink:href", "static/download.png")
+        .on("click", function() {
+            downloadSvg(`${id}-svg`, hydrographPlotParams.divWidth, hydrographPlotParams.divHeight);
+        });
 }
 
 export async function setupHydrographPlots() {
@@ -217,7 +241,7 @@ export async function setupHydrographPlots() {
 
         // both hydrographSV-div and hydrographInf-div have the same dimensions
         hydrographPlotParams.setDivHeight(document.getElementById("hydrographSV-div").clientHeight);
-        hydrographPlotParams.setDivWidth(document.getElementById("hydrographSV-div").clientWidth * 0.95);
+        hydrographPlotParams.setDivWidth(document.getElementById("hydrographSV-div").clientWidth);
 
         setupHydrographPlot('hydrographSV', timestamps);
         setupHydrographPlot('hydrographInf', timestamps);
