@@ -2,10 +2,11 @@ import os
 import json
 import math
 import argparse
-import functools
 import numpy as np
 import netCDF4 as nc
 from flask import Flask, render_template, request
+
+from webServer.helper import obs_seq_to_netcdf_wrapper
 
 app = Flask('hydroVis')
 
@@ -47,7 +48,7 @@ class Observations:
         self.modelFilesPath = modelFilesPath
         self.observedLinkIDs = {}
 
-        f = open(os.path.join(self.modelFilesPath, self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}'), 'r')
+        f = open(os.path.join(self.modelFilesPath, 'output', self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}'), 'r')
 
         readLinkID = False
         readLoc = False
@@ -86,6 +87,9 @@ class Observations:
         # TODO: Account for multiple observations from the same location/gauge
         f.close()
 
+        # convert obs_seq file to netcdf format
+        # obs_seq_to_netcdf_wrapper(self.modelFilesPath)
+
     def getHydrographStateVariableData(self, linkID, aggregation):
         hydrographData = {}
         hydrographData['linkID'] = linkID
@@ -114,7 +118,7 @@ class Observations:
 
         if locationDataOffset > 0:
             for timestamp in self.timestampList:
-                f = open(os.path.join(self.modelFilesPath, timestamp, f'obs_seq.final.{timestamp}'), 'r')
+                f = open(os.path.join(self.modelFilesPath, 'output', timestamp, f'obs_seq.final.{timestamp}'), 'r')
                 lines = f.readlines()
 
                 data = {}
@@ -164,15 +168,15 @@ class Ensemble:
     def __init__(self, modelFilesPath, rlData):
         # list of timestamps for the ensemble models 
         self.modelFilesPath = modelFilesPath
-        self.timestamps = [f for f in os.listdir(self.modelFilesPath) if os.path.isdir(os.path.join(self.modelFilesPath, f))]
+        self.timestamps = [f for f in os.listdir(os.path.join(self.modelFilesPath, 'output')) if os.path.isdir(os.path.join(self.modelFilesPath, 'output', f))]
         self.timestamps.sort()
         
         # number of models in the ensemble
-        netcdfFiles = [f for f in os.listdir(os.path.join(self.modelFilesPath, self.timestamps[0])) if 'member' in f]
+        netcdfFiles = [f for f in os.listdir(os.path.join(self.modelFilesPath, 'output', self.timestamps[0])) if 'member' in f]
         self.numEnsembleModels = int(len(netcdfFiles)/4)
 
         # gathering meta data
-        self.sampleOutputData = nc.Dataset(os.path.join(self.modelFilesPath, self.timestamps[0], netcdfFiles[0]))
+        self.sampleOutputData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', self.timestamps[0], netcdfFiles[0]))
         self.stateVariables = list(self.sampleOutputData.variables.keys())
         self.stateVariables.remove('time')
 
@@ -191,7 +195,6 @@ class Ensemble:
     
     def getStateData(self, timestamp, aggregation, daStage, stateVariable, inflation=None):
         # for map visualization
-
         print(timestamp, aggregation, daStage, stateVariable, inflation)
 
         # construct required netcdf file name
@@ -199,8 +202,8 @@ class Ensemble:
             analysisFilename = f'analysis_mean.{timestamp}.nc'
             forecastFilename = f'preassim_mean.{timestamp}.nc'
 
-            analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
-            forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+            analysisData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, analysisFilename))
+            forecastData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, forecastFilename))
             assert(self.rl.numLinks == len(analysisData.variables[self.stateVariables[0]][:]))
             assert(self.rl.numLinks == len(forecastData.variables[self.stateVariables[0]][:]))
 
@@ -210,13 +213,13 @@ class Ensemble:
             else:
                 filename = f'{daStage}_{aggregation}.{timestamp}.nc'
 
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
+            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, filename))
             assert(self.rl.numLinks == len(ncData.variables[self.stateVariables[0]][:]))
 
         else:
             filename = f'{daStage}_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
 
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, filename))
+            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, filename))
             assert(self.rl.numLinks == len(ncData.variables[self.stateVariables[0]][:]))
 
         renderData = []
@@ -259,8 +262,8 @@ class Ensemble:
             analysisFilename = f'analysis_member_{memberID}.{timestamp}.nc'
             forecastFilename = f'preassim_member_{memberID}.{timestamp}.nc'
 
-            memberAnalysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
-            memberForecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+            memberAnalysisData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, analysisFilename))
+            memberForecastData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, forecastFilename))
 
             dataPoint = {}
             dataPoint['memberID'] = id
@@ -294,22 +297,22 @@ class Ensemble:
             analysisSdFilename = f'analysis_sd.{timestamp}.nc'
             forecastSdFilename = f'preassim_sd.{timestamp}.nc'
 
-            analysisSdData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisSdFilename))
-            forecastSdData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastSdFilename))
+            analysisSdData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, analysisSdFilename))
+            forecastSdData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, forecastSdFilename))
 
             if aggregation != 'sd':
                 analysisMeanFilename = f'analysis_mean.{timestamp}.nc'
                 forecastMeanFilename = f'preassim_mean.{timestamp}.nc'
 
-                analysisMeanData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisMeanFilename))
-                forecastMeanData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastMeanFilename))
+                analysisMeanData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, analysisMeanFilename))
+                forecastMeanData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, forecastMeanFilename))
 
                 if aggregation != 'mean':
                     analysisMemberFilename = f'analysis_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
                     forecastMemberFilename = f'preassim_member_{str(aggregation).rjust(4, "0")}.{timestamp}.nc'
 
-                    analysisMemberData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisMemberFilename))
-                    forecastMemberData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastMemberFilename))
+                    analysisMemberData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, analysisMemberFilename))
+                    forecastMemberData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, forecastMemberFilename))
 
             if aggregation == 'mean':
                 hydrographData['data'].append({
@@ -361,8 +364,8 @@ class Ensemble:
             analysisFilename = f'analysis_{inflation}_mean.{timestamp}.nc'
             forecastFilename = f'preassim_{inflation}_mean.{timestamp}.nc'
 
-            analysisData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, analysisFilename))
-            forecastData = nc.Dataset(os.path.join(self.modelFilesPath, timestamp, forecastFilename))
+            analysisData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, analysisFilename))
+            forecastData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, forecastFilename))
 
             hydrographData['data'].append({
                 'timestamp': timestamp,
