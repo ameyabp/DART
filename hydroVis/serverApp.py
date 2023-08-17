@@ -48,7 +48,7 @@ class Observations:
         self.modelFilesPath = modelFilesPath
         
         # convert obs_seq file to netcdf format
-        # obs_seq_to_netcdf_wrapper(self.modelFilesPath)
+        obs_seq_to_netcdf_wrapper(self.modelFilesPath)
 
         self.observedLinkLocations = {}
         self.observedLinkDataIndexes = {}
@@ -348,6 +348,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(prog="HydroVis - Visual Analysis Tool for DART Forecasting of Hydro Models")
     parser.add_argument('-f', '--modelFilesPath', required=True)
     parser.add_argument('-rl', '--routeLinkFilePath', required=True)
+    parser.add_argument('-p', '--portNum', type=int, default=8000)
 
     args = parser.parse_args()
     rlData = RouteLinkData(args.routeLinkFilePath)
@@ -445,5 +446,4 @@ if __name__=='__main__':
         else:
             print('Expected POST method, but received ' + request.method)
 
-
-    app.run(host='127.0.0.1', port=8000, debug=True, use_evalex=False, use_reloader=True)
+    app.run(host='127.0.0.1', port=args.portNum, debug=True, use_evalex=False, use_reloader=True)
