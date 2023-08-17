@@ -46,120 +46,85 @@ class Observations:
     def __init__(self, modelFilesPath, timestampList):
         self.timestampList = timestampList
         self.modelFilesPath = modelFilesPath
-        self.observedLinkIDs = {}
-
-        f = open(os.path.join(self.modelFilesPath, 'output', self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}'), 'r')
-
-        readLinkID = False
-        readLoc = False
-        location = None
-        idx = 0
-
-        line = f.readline()
-        while line != '':
-            if readLinkID:
-                linkID = -1 * int(line.strip())
-                assert linkID > 0
-                self.observedLinkIDs[linkID] = {
-                    'location': location,
-                    'fileLine': idx - 173   # TODO: Remove hardcoding
-                }
-                location = None
-                readLinkID = False
-
-            if 'kind\n' in line:
-                readLinkID = True
-            
-            if readLoc:
-                coordinates = line.split()
-                location = [
-                    float(coordinates[0]) * 180 / math.pi,
-                    float(coordinates[1]) * 180 / math.pi
-                ]
-                readLoc = False
-
-            if 'loc3d\n' in line:
-                readLoc = True
-
-            idx += 1
-            line = f.readline()
-
-        # TODO: Account for multiple observations from the same location/gauge
-        f.close()
-
+        
         # convert obs_seq file to netcdf format
         # obs_seq_to_netcdf_wrapper(self.modelFilesPath)
+
+        self.observedLinkLocations = {}
+        self.observedLinkDataIndexes = {}
+
+        obs_seq = nc.Dataset(os.path.join(self.modelFilesPath, 'output', self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}.nc'))
+        for idx, linkID in enumerate(obs_seq.variables['obs_type'][:]):
+            location = [
+                float(obs_seq.variables['location'][idx][0]),
+                float(obs_seq.variables['location'][idx][1])
+            ]
+            assert (-linkID not in self.observedLinkLocations) or (self.observedLinkLocations[-linkID] == location)
+            # multiple observations may exist for each location, thus check the assert condition for sanity
+            self.observedLinkLocations[-linkID] = location
+            
+            if -linkID not in self.observedLinkDataIndexes:
+                self.observedLinkDataIndexes[-linkID] = []
+            self.observedLinkDataIndexes[-linkID].append(idx)
 
     def getHydrographStateVariableData(self, linkID, aggregation):
         hydrographData = {}
         hydrographData['linkID'] = linkID
-
-        # compute file line offsets from line number of ' OBS' string
-        observationDataOffset = 1
-
-        forecastMeanOffset = 2
-        analysisMeanOffset = 3
         
-        forecastSdOffset = 4
-        analysisSdOffset = 5
-
         if aggregation == 'mean' or aggregation == 'sd':
             hydrographData['agg'] = aggregation
 
         else:
-            # individual member - indexed starting from 1
-            forecastMemberOffset = 2 * (int(aggregation)-1) + 6
-            analysisMemberOffset = 2 * (int(aggregation)-1) + 7
             hydrographData['agg'] = int(aggregation)
 
         hydrographData['data'] = []
 
-        locationDataOffset = self.observedLinkIDs[linkID]['fileLine'] if linkID in self.observedLinkIDs else -1
+        assert linkID in self.observedLinkLocations
+        for timestamp in self.timestampList:
+            obs_seq = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'obs_seq.final.{timestamp}.nc'))
 
-        if locationDataOffset > 0:
-            for timestamp in self.timestampList:
-                f = open(os.path.join(self.modelFilesPath, 'output', timestamp, f'obs_seq.final.{timestamp}'), 'r')
-                lines = f.readlines()
+            dataIndexID = self.observedLinkDataIndexes[linkID]
 
-                data = {}
-                data['timestamp'] = timestamp
-                data['observation'] = lines[locationDataOffset + observationDataOffset].strip()
+            data = {}
+            data['timestamp'] = timestamp
+            averagedLinkData = np.average(obs_seq.variables['observations'][dataIndexID], axis=0)
+            data['observation'] = averagedLinkData[0].item()
 
-                if aggregation == 'mean':
-                    data['forecast'] = float(lines[locationDataOffset + forecastMeanOffset].strip())
-                    data['analysis'] = float(lines[locationDataOffset + analysisMeanOffset].strip())
-                    data['forecastSdMin'] = float(lines[locationDataOffset + forecastMeanOffset].strip()) - float(lines[locationDataOffset + forecastSdOffset].strip())
-                    data['forecastSdMax'] = float(lines[locationDataOffset + forecastMeanOffset].strip()) + float(lines[locationDataOffset + forecastSdOffset].strip())
-                    data['analysisSdMin'] = float(lines[locationDataOffset + analysisMeanOffset].strip()) - float(lines[locationDataOffset + analysisSdOffset].strip())
-                    data['analysisSdMax'] = float(lines[locationDataOffset + analysisMeanOffset].strip()) + float(lines[locationDataOffset + analysisSdOffset].strip())
+            if aggregation == 'mean':
+                data['forecast'] = averagedLinkData[1].item()
+                data['analysis'] = averagedLinkData[2].item()
+                data['forecastSdMin'] = averagedLinkData[1].item() - averagedLinkData[3].item()
+                data['forecastSdMax'] = averagedLinkData[1].item() + averagedLinkData[3].item()
+                data['analysisSdMin'] = averagedLinkData[2].item() - averagedLinkData[4].item()
+                data['analysisSdMax'] = averagedLinkData[2].item() + averagedLinkData[4].item()
 
-                elif aggregation == 'sd':
-                    data['forecast'] = float(lines[locationDataOffset + forecastSdOffset].strip())
-                    data['analysis'] = float(lines[locationDataOffset + analysisSdOffset].strip())
-                    data['forecastSdMin'] = float(lines[locationDataOffset + forecastSdOffset].strip())
-                    data['forecastSdMax'] = float(lines[locationDataOffset + forecastSdOffset].strip())
-                    data['analysisSdMin'] = float(lines[locationDataOffset + analysisSdOffset].strip())
-                    data['analysisSdMax'] = float(lines[locationDataOffset + analysisSdOffset].strip())
+            elif aggregation == 'sd':
+                data['forecast'] = averagedLinkData[3].item()
+                data['analysis'] = averagedLinkData[4].item()
+                data['forecastSdMin'] = averagedLinkData[3].item()
+                data['forecastSdMax'] = averagedLinkData[4].item()
+                data['analysisSdMin'] = averagedLinkData[3].item()
+                data['analysisSdMax'] = averagedLinkData[4].item()
 
-                else:
-                    data['forecast'] = float(lines[locationDataOffset + forecastMemberOffset].strip())
-                    data['analysis'] = float(lines[locationDataOffset + analysisMemberOffset].strip())
-                    data['forecastSdMin'] = float(lines[locationDataOffset + forecastMeanOffset].strip()) - float(lines[locationDataOffset + forecastSdOffset].strip())
-                    data['forecastSdMax'] = float(lines[locationDataOffset + forecastMeanOffset].strip()) + float(lines[locationDataOffset + forecastSdOffset].strip())
-                    data['analysisSdMin'] = float(lines[locationDataOffset + analysisMeanOffset].strip()) - float(lines[locationDataOffset + analysisSdOffset].strip())
-                    data['analysisSdMax'] = float(lines[locationDataOffset + analysisMeanOffset].strip()) + float(lines[locationDataOffset + analysisSdOffset].strip())
+            else:
+                data['forecast'] = averagedLinkData[4 + 2 * (aggregation - 1)].item() 
+                data['analysis'] = averagedLinkData[4 + 2 * (aggregation - 1) + 1].item()
+                data['forecastSdMin'] = averagedLinkData[1].item() - averagedLinkData[3].item()
+                data['forecastSdMax'] = averagedLinkData[1].item() + averagedLinkData[3].item()
+                data['analysisSdMin'] = averagedLinkData[2].item() - averagedLinkData[4].item()
+                data['analysisSdMax'] = averagedLinkData[2].item() + averagedLinkData[4].item()
 
-                hydrographData['data'].append(data)
+            hydrographData['data'].append(data)
 
         return hydrographData
-    
+
     def getGaugeLocations(self):
         gaugeLocationData = []
 
-        for linkID in self.observedLinkIDs:
+        for linkID in self.observedLinkLocations:
             gaugeLocationData.append({
-                'linkID': linkID,
-                'location': self.observedLinkIDs[linkID]['location']
+                'linkID': int(linkID),
+                'location': self.observedLinkLocations[linkID]
             })
 
         return gaugeLocationData
