@@ -42,7 +42,7 @@ class RouteLinkData:
             'centroid': self.centroid
         }
 
-class Observations:
+class ObservationData:
     def __init__(self, modelFilesPath, timestampList):
         self.timestampList = timestampList
         self.modelFilesPath = modelFilesPath
@@ -129,7 +129,7 @@ class Observations:
 
         return gaugeLocationData
     
-class Ensemble:
+class AssimilationData:
     def __init__(self, modelFilesPath, rlData):
         # list of timestamps for the ensemble models 
         self.modelFilesPath = modelFilesPath
@@ -343,17 +343,22 @@ class Ensemble:
 
         return hydrographData
 
+class OpenLoopData:
+    def __init__(self, dataFilesPath, timestamps):
+        self.dataFilesPath = dataFilesPath
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(prog="HydroVis - Visual Analysis Tool for DART Forecasting of Hydro Models")
-    parser.add_argument('-f', '--modelFilesPath', required=True)
+    parser.add_argument('-da', '--daDataPath', required=True)
+    parser.add_argument('-ol', '--openLoopDataPath', required=True)
     parser.add_argument('-rl', '--routeLinkFilePath', required=True)
     parser.add_argument('-p', '--portNum', type=int, default=8000)
 
     args = parser.parse_args()
     rlData = RouteLinkData(args.routeLinkFilePath)
-    ensemble = Ensemble(args.modelFilesPath, rlData)
-    observations = Observations(args.modelFilesPath, ensemble.timestamps)
+    ensemble = AssimilationData(args.daDataPath, rlData)
+    observations = ObservationData(args.daDataPath, ensemble.timestamps)
+    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps)
     
     @app.route('/', methods=['GET'])
     def index():
