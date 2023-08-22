@@ -8,12 +8,10 @@ from flask import Flask, render_template, request
 from webServer.helper import obs_seq_to_netcdf_wrapper
 from webServer.assimilationData import AssimilationData
 from webServer.routeLink import RouteLinkData
+from webServer.observationData import ObservationData
+from webServer.openloopData import OpenLoopData
 
 app = Flask('hydroVis')
-
-class OpenLoopData:
-    def __init__(self, dataFilesPath, timestamps):
-        self.dataFilesPath = dataFilesPath
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(prog="HydroVis - Visual Analysis Tool for DART Forecasting of Hydro Models")
@@ -25,8 +23,8 @@ if __name__=='__main__':
     args = parser.parse_args()
     rlData = RouteLinkData(args.routeLinkFilePath)
     ensemble = AssimilationData(args.daDataPath, rlData)
-    observations = ObservationData(args.daDataPath, ensemble.timestamps)
-    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps)
+    observations = ObservationData(args.daDataPath, ensemble.timestamps, rlData)
+    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, rlData)
     
     @app.route('/', methods=['GET'])
     def index():

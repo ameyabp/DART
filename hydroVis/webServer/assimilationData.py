@@ -3,6 +3,8 @@ import netCDF4 as nc
 import xarray as xr
 import numpy as np
 
+from .helper import daPhaseCoords, aggregationCoords
+
 # Class definition for parsing the assimilated data files
 # and creating xarray dataArray data structure from it
 
@@ -25,45 +27,36 @@ class AssimilationData:
         # routeLink data
         self.rl = rlData
 
-        linkIDCoords = self.rl.numLinks
+        numLinks = self.rl.numLinks
+        linkIDCoords = self.rl.linkIDs
         timeCoords = self.timestamps
-        daPhaseCoords = ['forecast', 'analysis', 'increment', 'openloop']
-        aggregationCoords = ['mean', 'stdev', 'member']
 
         qlink_data = xr.DataArray(
-            data=np.ndarray((len(linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
+            data=np.ndarray((numLinks, len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
             coords={'linkID':linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
             dims=['linkID', 'time', 'daPhase', 'aggregation'], 
             name='qlink1'
         )
 
         z_gwsubbas_data = xr.DataArray(
-            data=np.ndarray((len(linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
+            data=np.ndarray((numLinks, len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
             coords={'linkID':linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
             dims=['linkID', 'time', 'daPhase', 'aggregation'], 
             name='z_gwsubbas'
         )
 
         priorinf_data = xr.DataArray(
-            data=np.ndarray((len(linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
+            data=np.ndarray((numLinks, len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
             coords={'linkID':linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
             dims=['linkID', 'time', 'daPhase', 'aggregation'], 
             name='prior_inflation'
         )
 
         postinf_data = xr.DataArray(
-            data=np.ndarray((len(linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
+            data=np.ndarray((numLinks, len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
             coords={'linkID':linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
             dims=['linkID', 'time', 'daPhase', 'aggregation'], 
             name='posterior_inflation'
-        )
-
-        # move to observationData.py
-        obs_data = xr.DataArray(
-            data=np.ndarray((len(linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggregationCoords))), 
-            coords={'linkID':linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
-            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
-            name='observation'
         )
 
     def getUIParameters(self):
@@ -111,11 +104,17 @@ class AssimilationData:
                 continue
 
             linkIndices = self.rl.fromIndices[self.rl.fromIndsStart[i]-1: self.rl.fromIndsEnd[i]]-1
+            # it should have been
+            # linkIndices = self.rl.fromIndices[self.rl.fromIndsStart[i]: self.rl.fromIndsEnd[i]+1]-1
+            # but the netcdf files were written using 1-based indexes for fromIndsStart, fromIndsEnd and fromIndices
+            # therefore to make it work with python's netCDF library, we do a '-1' for each of the three array accesses
             assert (self.rl.numUpLinks[i] == len(linkIndices))
 
             for linkID in linkIndices:
                 dataPoint = {}
-                dataPoint['linkID'] = int(linkID)
+                dataPoint['linkID'] = int(linkID)+1
+                # to be consistent with the way the data was written in the original netCDF files (1-based index)
+                # change from python netCDF library's 0-based index to 1-based index with a '+1'
 
                 if daStage == 'increment':
                     dataPoint[stateVariable] = float(analysisData.variables[stateVariable][linkID].item()) - float(forecastData.variables[stateVariable][linkID].item())

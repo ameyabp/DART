@@ -3,10 +3,14 @@ import xarray as xr
 import os
 import numpy as np
 
-from webServer.helper import obs_seq_to_netcdf_wrapper
+from .helper import obs_seq_to_netcdf_wrapper
+from .helper import daPhaseCoords, aggregationCoords
+
+# Class definition for parsing observation data
+# and creating xarray dataArray data structure from it
 
 class ObservationData:
-    def __init__(self, modelFilesPath, timestampList):
+    def __init__(self, modelFilesPath, timestampList, rlData):
         self.timestampList = timestampList
         self.modelFilesPath = modelFilesPath
         
@@ -29,6 +33,13 @@ class ObservationData:
             if -linkID not in self.observedLinkDataIndexes:
                 self.observedLinkDataIndexes[-linkID] = []
             self.observedLinkDataIndexes[-linkID].append(idx)
+
+        obs_data = xr.DataArray(
+            data=np.ndarray((rlData.numLinks, len(timestampList), len(daPhaseCoords), len(aggregationCoords))), 
+            coords={'linkID':rlData.linkIDs, 'time':timestampList, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
+            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
+            name='observation'
+        )
 
     def getHydrographStateVariableData(self, linkID, aggregation):
         hydrographData = {}
