@@ -59,7 +59,10 @@ class RouteLinkData:
                 self.linkData.loc[dict(linkID=linkIDArrayIndex+1, descriptor='dstLat')] = self.lat[i]
                 self.linkData.loc[dict(linkID=linkIDArrayIndex+1, descriptor='dstLon')] = self.lon[i]
                 self.linkData.loc[dict(linkID=linkIDArrayIndex+1, descriptor='gauge')] = 0
+                # TODO: Update gauge descriptor as per gauge location data from routelink and obs_seq files
     
+        self.getRouteLinkData()
+
     def getDataBoundingBoxLonLat(self):
         self.bbox = {
             'lonMin': float(min(self.lon)),
@@ -77,3 +80,29 @@ class RouteLinkData:
             'bbox': self.bbox,
             'centroid': self.centroid
         }
+
+    def getRouteLinkData(self):
+        # construct json data structure to send to the front end
+        routeLinkData = []
+        
+        for linkIDArrayIndex in self.linkData.coords['linkID']:
+            data = {}
+            data['linkID'] = linkIDArrayIndex.item()
+            data['lat'] = self.linkData.sel(linkID=linkIDArrayIndex, descriptor='lat').item()
+            data['lon'] = self.linkData.sel(linkID=linkIDArrayIndex, descriptor='lon').item()
+            # data['srcLat'] = self.linkData.sel(linkID=linkIDArrayIndex, descriptor='srcLat')
+            # data['srcLon'] = self.linkData.sel(linkID=linkIDArrayIndex, descriptor='srcLon')
+            # data['dstLat'] = self.linkData.sel(linkID=linkIDArrayIndex, descriptor='dstLat')
+            # data['dstLon'] = self.linkData.sel(linkID=linkIDArrayIndex, descriptor='dstLon')
+            data['line'] = {
+                'type': "LineString",
+                'coordinates': [
+                    [self.linkData.sel(linkID=linkIDArrayIndex, descriptor='srcLon').item(), self.linkData.sel(linkID=linkIDArrayIndex, descriptor='srcLat').item()],
+                    [self.linkData.sel(linkID=linkIDArrayIndex, descriptor='dstLon').item(), self.linkData.sel(linkID=linkIDArrayIndex, descriptor='dstLat').item()]
+                ]
+            }
+            data['gauge'] = self.linkData.sel(linkID=linkIDArrayIndex, descriptor='gauge').item()
+
+            routeLinkData.append(data)
+
+        return routeLinkData
