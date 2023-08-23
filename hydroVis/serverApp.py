@@ -1,11 +1,9 @@
 import os
 import json
 import argparse
-import numpy as np
-import netCDF4 as nc
+import xarray as xr
 from flask import Flask, render_template, request
 
-from webServer.helper import obs_seq_to_netcdf_wrapper
 from webServer.assimilationData import AssimilationData
 from webServer.routeLink import RouteLinkData
 from webServer.observationData import ObservationData
@@ -21,7 +19,14 @@ if __name__=='__main__':
     parser.add_argument('-p', '--portNum', type=int, default=8000)
 
     args = parser.parse_args()
+
+    # initialize xarray dataset
+    # this will be our in-memory multidimensional array database i.e. datacube
+    xrDataset = xr.Dataset()
+
     rlData = RouteLinkData(args.routeLinkFilePath)
+    xrDataset.assign(routeLinkData=rlData.linkData)
+    
     ensemble = AssimilationData(args.daDataPath, rlData)
     observations = ObservationData(args.daDataPath, ensemble.timestamps, rlData)
     openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, rlData)
