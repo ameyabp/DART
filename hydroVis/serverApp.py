@@ -27,7 +27,7 @@ if __name__=='__main__':
     rlData = RouteLinkData(args.routeLinkFilePath, xrDataset)
     ensemble = AssimilationData(args.daDataPath, rlData, xrDataset)
     observations = ObservationData(args.daDataPath, ensemble.timestamps, xrDataset)
-    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, rlData, xrDataset)
+    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, ensemble.numEnsembleModels, rlData, xrDataset)
     
     @app.route('/', methods=['GET'])
     def index():
