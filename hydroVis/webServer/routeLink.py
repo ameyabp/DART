@@ -14,7 +14,7 @@ linkDescriptor = [
 # and creating xarray dataArray data structure from it
 
 class RouteLinkData:
-    def __init__(self, routeLinkFileName):
+    def __init__(self, routeLinkFileName, xrDataset):
         routeLinkData = nc.Dataset(routeLinkFileName)
         self.linkIDs = routeLinkData.variables['link'][:]
         self.numLinks = len(self.linkIDs)
@@ -29,6 +29,7 @@ class RouteLinkData:
         # we only care about links which are themselves uplinks to some links
         # the linkID array indices for such links is in fromIndices
         self.linkIDCoords = self.fromIndices
+        self.xrDataset = xrDataset
         
         self.linkData = xr.DataArray(
             data=np.ndarray((len(self.linkIDCoords), len(linkDescriptor))),
@@ -61,7 +62,7 @@ class RouteLinkData:
                 self.linkData.loc[dict(linkID=linkIDArrayIndex+1, descriptor='gauge')] = 0
                 # TODO: Update gauge descriptor as per gauge location data from routelink and obs_seq files
     
-        self.getRouteLinkData()
+        self.xrDataset = self.xrDataset.assign(variables={'routeLinkData': self.linkData})
 
     def getDataBoundingBoxLonLat(self):
         self.bbox = {

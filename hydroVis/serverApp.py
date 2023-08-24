@@ -24,10 +24,9 @@ if __name__=='__main__':
     # this will be our in-memory multidimensional array database i.e. datacube
     xrDataset = xr.Dataset()
 
-    rlData = RouteLinkData(args.routeLinkFilePath)
-    xrDataset.assign(routeLinkData=rlData.linkData)
-    
-    ensemble = AssimilationData(args.daDataPath, rlData)
+    rlData = RouteLinkData(args.routeLinkFilePath, xrDataset)
+    ensemble = AssimilationData(args.daDataPath, rlData, xrDataset)
+
     observations = ObservationData(args.daDataPath, ensemble.timestamps, rlData)
     openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, rlData)
     
