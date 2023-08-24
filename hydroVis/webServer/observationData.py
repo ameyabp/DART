@@ -10,10 +10,10 @@ from .helper import daPhaseCoords, aggregationCoords
 # and creating xarray dataArray data structure from it
 
 class ObservationData:
-    def __init__(self, modelFilesPath, timestampList, rlData):
+    def __init__(self, modelFilesPath, timestampList, xrDataset):
         self.timestampList = timestampList
         self.modelFilesPath = modelFilesPath
-        
+        self.xrDataset = xrDataset
         # convert obs_seq file to netcdf format
         obs_seq_to_netcdf_wrapper(self.modelFilesPath)
 
@@ -34,12 +34,38 @@ class ObservationData:
                 self.observedLinkDataIndexes[-linkID] = []
             self.observedLinkDataIndexes[-linkID].append(idx)
 
-        obs_data = xr.DataArray(
-            data=np.ndarray((rlData.numLinks, len(timestampList), len(daPhaseCoords), len(aggregationCoords))), 
-            coords={'linkID':rlData.linkIDs, 'time':timestampList, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
-            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
-            name='observation'
+        ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}.nc'))
+        self.linkIDCoords = np.unique(-1 * ncData.variables['obs_type'][:])
+
+        self.observation_gauge_data = xr.DataArray(
+            data=np.ndarray((len(self.linkIDCoords), len(self.timestampList))),#, len(daPhaseCoords), len(aggregationCoords))), 
+            coords={'linkID': self.linkIDCoords, 'time': self.timestampList},#, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
+            dims=['linkID', 'time'],#, 'daPhase', 'aggregation'], 
+            name='observation_gauge_data'
         )
+
+        self.observation_gauge_location_data = xr.DataArray(
+            data=np.ndarray((len(self.linkIDCoords), 2)),
+            coords={'linkID': self.linkIDCoords, 'location': ['lon', 'lat']},
+            dims=['linkID', 'location'],
+            name='observation_gauge_locations'
+        )
+
+        for timestamp in self.timestampList:
+            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'obs_seq.final.{timestamp}.nc'))
+
+            for linkID in np.unique(ncData.variables['obs_type']):
+                linkIDIndexes = np.where(ncData.variables['obs_type'][:] == linkID)[0]
+                self.observation_gauge_data.loc[dict(linkID=-linkID, time=timestamp)] = np.average(ncData.variables['observations'][linkIDIndexes,0])
+
+        for linkID in np.unique(ncData.variables['obs_type']):
+            linkIDIndex = np.where(ncData.variables['obs_type'][:] == linkID)[0][0]
+            self.observation_gauge_location_data.loc[dict(linkID=-linkID, location=['lon', 'lat'])] = ncData.variables['location'][linkIDIndex, :2]
+
+        self.xrDataset = self.xrDataset.assign(variables={
+            'observation_gauge_data': self.observation_gauge_data,
+            'observation_gauge_locations': self.observation_gauge_location_data
+        })
 
     def getHydrographStateVariableData(self, linkID, aggregation):
         hydrographData = {}
@@ -102,3 +128,34 @@ class ObservationData:
             })
 
         return gaugeLocationData
+
+    def getObservationGaugeLocationData(self):
+        gaugeLocationData = []
+
+        for linkID in self.observation_gauge_location_data.coords['linkID']:
+            location = self.observation_gauge_location_data.sel(linkID=linkID)
+            gaugeLocationData.append({
+                'linkID': linkID,
+                'location': [
+                    location[0].item(),
+                    location[1].item(),
+                ]
+            })
+
+        return gaugeLocationData
+    
+    def getObservationDataForHydrograph(self, linkID, aggregation):
+        renderData = {
+            'linkID': linkID,
+            'data': []
+        }
+
+        for timestamp in self.timestampList:
+            dataPoint = {
+                'timestamp': timestamp,
+                'observation': self.observation_gauge_data.sel(linkID=linkID, time=timestamp).item()
+            }
+
+            renderData.data.append(dataPoint)
+
+        return renderData
