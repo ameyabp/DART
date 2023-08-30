@@ -554,6 +554,85 @@ export async function setupBaseMap() {
         });
 }
 
+export async function drawLinkData() {
+    await d3.json('/getRouteLinkData',
+    {
+        method: 'POST',
+        headers: {
+            'Content-type': 'application/json; charset=UTF-8'
+        }
+    })
+    .then(function(data) {
+
+        d3.select("#wrf-hydro-data")
+        .selectAll("path")
+        .data(data, d => d.linkID)
+        .join(
+            function enter(enter) {
+                enter.append("path")
+                    .attr("d", function(d) {    return mapPlotParams.path(d.line); })
+                    .attr("stroke-width", 1)
+                    .attr("stroke", "black")
+                    .style("fill", "None")
+                    // .on("mouseover", function(event, d) {
+                    //     d3.select(this)
+                    //         .transition()
+                    //         .duration(100)
+                    //         .attr("stroke-width", 2 * sizeScale(d[stateVariable]));
+                        
+                    //         mapPlotParams.tooltip.display(d);
+                    // })
+                    // .on("mousemove", function(event, d) {
+                    //     mapPlotParams.tooltip.move(event)
+                    // })
+                    // .on("mouseout", function(event, d) {
+                    //     d3.select(this)
+                    //         .transition()
+                    //         .duration(100)
+                    //         .attr("stroke-width", sizeScale(d[stateVariable]));
+
+                    //     mapPlotParams.tooltip.hide();
+                    // })
+                    // .on("click", function(event, d) {
+                    //     uiParameters.updateLinkSelection(d.linkID, d.line.coordinates[0], d.line.coordinates[1]);
+                    //     uiParameters.updateReadFromGaugeLocation(false);
+                    //     drawDistribution();
+                    //     drawHydrographStateVariable();
+                    //     drawHydrographInflation();
+                    // });
+            }
+            // function update(update) {
+            //     update.attr("d", function(d) {    return mapPlotParams.path(d.line); })
+            //         .attr("stroke-width", function(d) {
+            //             return sizeScale(d[stateVariable]);
+            //         })
+            //         .attr("stroke", function(d) {
+            //             return colorScale(d[stateVariable]);
+            //         })
+            //         .on("mouseover", function(event, d) {
+            //             d3.select(this)
+            //                 .transition()
+            //                 .duration(100)
+            //                 .attr("stroke-width", 2 * sizeScale(d[stateVariable]));
+                        
+            //                 mapPlotParams.tooltip.display(d);
+            //         })
+            //         .on("mousemove", function(event, d) {
+            //             mapPlotParams.tooltip.move(event)
+            //         })
+            //         .on("mouseout", function(event, d) {
+            //             d3.select(this)
+            //                 .transition()
+            //                 .duration(100)
+            //                 .attr("stroke-width", sizeScale(d[stateVariable]));
+
+            //             mapPlotParams.tooltip.hide();
+            //         });
+            // }
+        )
+    });
+}
+
 export async function drawMapData() {
     const stateVariable = uiParameters.stateVariable;
     const aggregation = uiParameters.aggregation;
@@ -564,7 +643,7 @@ export async function drawMapData() {
     // TODO: check if new data really needs to be fetched, 
     // or can we simply used already fetched data
 
-    d3.json('/getStateData',
+    d3.json('/getMapData',
     {
         method: 'POST',
         headers: {
@@ -595,8 +674,6 @@ export async function drawMapData() {
                             return sizeScale(d[stateVariable]);
                         })
                         .attr("stroke", function(d) {
-                            if (d.linkID == 1666)
-                                return "black";
                             return colorScale(d[stateVariable]);
                         })
                         .style("fill", "None")

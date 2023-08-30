@@ -3,17 +3,16 @@ import netCDF4 as nc
 import xarray as xr
 import numpy as np
 
-from .helper import daPhaseCoords, aggregationCoords
-
 # Class definition for parsing the assimilated data files
 # and creating xarray dataArray data structure from it
 
 class AssimilationData:
-    def __init__(self, modelFilesPath, rlData, xrDataset):
+    def __init__(self, modelFilesPath, rlData, datacube, createXarrayFromScratch):
         # list of timestamps for the ensemble models 
         self.modelFilesPath = modelFilesPath
         self.timestamps = [f for f in os.listdir(os.path.join(self.modelFilesPath, 'output')) if os.path.isdir(os.path.join(self.modelFilesPath, 'output', f))]
         self.timestamps.sort()
+        self.timestamps = self.timestamps[:3]
         
         # number of models in the ensemble
         netcdfFiles = [f for f in os.listdir(os.path.join(self.modelFilesPath, 'output', self.timestamps[0])) if 'member' in f]
@@ -27,163 +26,133 @@ class AssimilationData:
         # routeLink data
         self.rl = rlData
 
-        self.xrDataset = xrDataset
+        self.linkIDCoords = self.rl.linkIDCoords
+        self.timeCoords = self.timestamps
+        self.stateVariableDaPhaseCoords = ['preassim', 'analysis', 'openloop']
+        self.stateVariableAggregationCoords = ['mean', 'sd'] + list(range(1, self.numEnsembleModels+1, 1))
+        self.inflationDaPhaseCoords = ['preassim', 'analysis']
 
-        self.linkIDCoords = self.rl.fromIndices
-        timeCoords = self.timestamps
-        aggCoords = aggregationCoords.extend(list(range(1, self.numEnsembleModels+1, 1)))
+        if not createXarrayFromScratch and os.path.exists(os.path.join('datacube', 'qlink1_data.nc')) and \
+            os.path.exists(os.path.join('datacube', 'z_gwsubbas_data.nc')) and \
+            os.path.exists(os.path.join('datacube', 'qlink1_priorinf.nc')) and \
+            os.path.exists(os.path.join('datacube', 'z_gwsubbas_postinf.nc')) and \
+            os.path.exists(os.path.join('datacube', 'qlink1_postinf.nc')) and \
+            os.path.exists(os.path.join('datacube', 'z_gwsubbas_postinf.nc')):
 
-        self.qlink1_data = xr.DataArray(
-            data=np.ndarray((len(self.linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggCoords))), 
-            coords={'linkID':self.linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggCoords}, 
-            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
-            name='qlink1'
-        )
+            self.qlink1_data = xr.open_dataarray(os.path.join('datacube', 'qlink1_data.nc'))
+            self.z_gwsubbas_data = xr.open_dataarray(os.path.join('datacube', 'z_gwsubbas_data.nc'))
+            self.qlink1_priorinf = xr.open_dataarray(os.path.join('datacube', 'qlink1_priorinf.nc'))
+            self.z_gwsubbas_priorinf = xr.open_dataarray(os.path.join('datacube', 'z_gwsubbas_priorinf.nc'))
+            self.qlink1_postinf = xr.open_dataarray(os.path.join('datacube', 'qlink1_postinf.nc'))
+            self.z_gwsubbas_postinf = xr.open_dataarray(os.path.join('datacube', 'z_gwsubbas_postinf.nc'))
+            print("Read assimilation data from files")
+        else:
+            self.qlink1_data = xr.DataArray(
+                data=np.ndarray((len(self.linkIDCoords), len(self.timeCoords), len(self.stateVariableDaPhaseCoords), len(self.stateVariableAggregationCoords))), 
+                coords={'linkID':self.linkIDCoords, 'time':self.timeCoords, 'daPhase':self.stateVariableDaPhaseCoords, 'aggregation':self.stateVariableAggregationCoords},
+                dims=['linkID', 'time', 'daPhase', 'aggregation'], 
+                name='qlink1_data'
+            )
 
-        self.z_gwsubbas_data = xr.DataArray(
-            data=np.ndarray((len(self.linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggCoords))), 
-            coords={'linkID':self.linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggCoords}, 
-            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
-            name='z_gwsubbas'
-        )
+            self.z_gwsubbas_data = xr.DataArray(
+                data=np.ndarray((len(self.linkIDCoords), len(self.timeCoords), len(self.stateVariableDaPhaseCoords), len(self.stateVariableAggregationCoords))), 
+                coords={'linkID':self.linkIDCoords, 'time':self.timeCoords, 'daPhase':self.stateVariableDaPhaseCoords, 'aggregation':self.stateVariableAggregationCoords},
+                dims=['linkID', 'time', 'daPhase', 'aggregation'], 
+                name='z_gwsubbas_data'
+            )
 
-        self.qlink1_priorinf_data = xr.DataArray(
-            data=np.ndarray((len(self.linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggCoords))), 
-            coords={'linkID':self.linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggCoords}, 
-            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
-            name='qlink1_priorinf'
-        )
+            self.qlink1_priorinf_data = xr.DataArray(
+                data=np.ndarray((len(self.linkIDCoords), len(self.timeCoords), len(self.inflationDaPhaseCoords))), 
+                coords={'linkID':self.linkIDCoords, 'time':self.timeCoords, 'daPhase':self.inflationDaPhaseCoords}, 
+                dims=['linkID', 'time', 'daPhase'], 
+                name='qlink1_priorinf'
+            )
 
-        self.z_gwsubbas_priorinf_data = xr.DataArray(
-            data=np.ndarray((len(self.linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggCoords))), 
-            coords={'linkID':self.linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggCoords}, 
-            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
-            name='z_gwsubbas_priorinf'
-        )
+            self.z_gwsubbas_priorinf_data = xr.DataArray(
+                data=np.ndarray((len(self.linkIDCoords), len(self.timeCoords), len(self.inflationDaPhaseCoords))), 
+                coords={'linkID':self.linkIDCoords, 'time':self.timeCoords, 'daPhase':self.inflationDaPhaseCoords}, 
+                dims=['linkID', 'time', 'daPhase'], 
+                name='z_gwsubbas_priorinf'
+            )
 
-        self.qlink1_postinf_data = xr.DataArray(
-            data=np.ndarray((len(self.linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggCoords))), 
-            coords={'linkID':self.linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggCoords}, 
-            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
-            name='qlink1_postinf'
-        )
+            self.qlink1_postinf_data = xr.DataArray(
+                data=np.ndarray((len(self.linkIDCoords), len(self.timeCoords), len(self.inflationDaPhaseCoords))), 
+                coords={'linkID':self.linkIDCoords, 'time':self.timeCoords, 'daPhase':self.inflationDaPhaseCoords}, 
+                dims=['linkID', 'time', 'daPhase'], 
+                name='qlink1_postinf'
+            )
 
-        self.z_gwsubbas_postinf_data = xr.DataArray(
-            data=np.ndarray((len(self.linkIDCoords), len(timeCoords), len(daPhaseCoords), len(aggCoords))), 
-            coords={'linkID':self.linkIDCoords, 'time':timeCoords, 'daPhase':daPhaseCoords, 'aggregation':aggCoords}, 
-            dims=['linkID', 'time', 'daPhase', 'aggregation'], 
-            name='z_gwsubbas_postinf'
-        )
+            self.z_gwsubbas_postinf_data = xr.DataArray(
+                data=np.ndarray((len(self.linkIDCoords), len(self.timeCoords), len(self.inflationDaPhaseCoords))), 
+                coords={'linkID':self.linkIDCoords, 'time':self.timeCoords, 'daPhase':self.inflationDaPhaseCoords},
+                dims=['linkID', 'time', 'daPhase'], 
+                name='z_gwsubbas_postinf'
+            )
 
-        for timestamp in self.timestamps:
-            # FORECAST
-            # mean
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_mean.{timestamp}.nc'))
-            self.qlink1_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='mean')] = ncData.variables['qlink1'][self.linkIDCoords]
-            self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='mean')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
-            
-            # stdev
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_sd.{timestamp}.nc'))
-            self.qlink1_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='sd')] = ncData.variables['qlink1'][self.linkIDCoords]
-            self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='sd')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
+            for timestamp in self.timestamps:
+                # FORECAST
+                # mean
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_mean.{timestamp}.nc'))
+                self.qlink1_data.loc[dict(time=timestamp, daPhase='preassim', aggregation='mean')] = ncData.variables['qlink1'][self.linkIDCoords]
+                self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='preassim', aggregation='mean')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
+                
+                # stdev
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_sd.{timestamp}.nc'))
+                self.qlink1_data.loc[dict(time=timestamp, daPhase='preassim', aggregation='sd')] = ncData.variables['qlink1'][self.linkIDCoords]
+                self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='preassim', aggregation='sd')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
-            # member
-            for member in range(1, self.numEnsembleModels+1):
-                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_member_{str(member).rjust(4, "0")}.{timestamp}.nc'))
-                self.qlink1_data.loc[dict(time=timestamp, daPhase='forecast', aggregation=member)] = ncData.variables['qlink1'][self.linkIDCoords]
-                self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='forecast', aggregation=member)] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
+                # member
+                for member in range(1, self.numEnsembleModels+1):
+                    ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_member_{str(member).rjust(4, "0")}.{timestamp}.nc'))
+                    self.qlink1_data.loc[dict(time=timestamp, daPhase='preassim', aggregation=str(member))] = ncData.variables['qlink1'][self.linkIDCoords]
+                    self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='preassim', aggregation=str(member))] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
-            # prior_inflation mean
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_priorinf_mean.{timestamp}.nc'))
-            self.qlink1_priorinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='mean')] = ncData.variables['qlink1'][self.linkIDCoords]
-            self.z_gwsubbas_priorinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='mean')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
+                # prior_inflation
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_priorinf_mean.{timestamp}.nc'))
+                self.qlink1_priorinf.loc[dict(time=timestamp, daPhase='preassim')] = ncData.variables['qlink1'][self.linkIDCoords]
+                self.z_gwsubbas_priorinf.loc[dict(time=timestamp, daPhase='preassim')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
-            # prior_inflation stdev
-            self.qlink1_priorinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='stdev')] = 0
-            self.z_gwsubbas_priorinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='stdev')] = 0
+                # post_inflation
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_postinf_mean.{timestamp}.nc'))
+                self.qlink1_postinf.loc[dict(time=timestamp, daPhase='preassim')] = ncData.variables['qlink1'][self.linkIDCoords]
+                self.z_gwsubbas_postinf.loc[dict(time=timestamp, daPhase='preassim')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
-            # prior_inflation member
-            self.qlink1_priorinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation=list(range(1, self.numEnsembleModels+1, 1)))] = 0
-            self.z_gwsubbas_priorinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation=list(range(1, self.numEnsembleModels+1, 1)))] = 0
+                # ANALYSIS
+                # mean
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_mean.{timestamp}.nc'))
+                self.qlink1_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='mean')] = ncData.variables['qlink1'][self.linkIDCoords]
+                self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='mean')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
+                
+                # stdev
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_sd.{timestamp}.nc'))
+                self.qlink1_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='sd')] = ncData.variables['qlink1'][self.linkIDCoords]
+                self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='sd')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
-            # post_inflation mean
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'preassim_postinf_mean.{timestamp}.nc'))
-            self.qlink1_postinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='mean')] = ncData.variables['qlink1'][self.linkIDCoords]
-            self.z_gwsubbas_postinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='mean')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
+                # member
+                for member in range(1, self.numEnsembleModels+1):
+                    ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_member_{str(member).rjust(4, "0")}.{timestamp}.nc'))
+                    self.qlink1_data.loc[dict(time=timestamp, daPhase='analysis', aggregation=str(member))] = ncData.variables['qlink1'][self.linkIDCoords]
+                    self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='analysis', aggregation=str(member))] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
-            # post_inflation stdev
-            self.qlink1_postinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='stdev')] = 0
-            self.z_gwsubbas_postinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation='stdev')] = 0
+                # prior_inflation mean
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_priorinf_mean.{timestamp}.nc'))
+                self.qlink1_priorinf.loc[dict(time=timestamp, daPhase='analysis')] = ncData.variables['qlink1'][self.linkIDCoords]
+                self.z_gwsubbas_priorinf.loc[dict(time=timestamp, daPhase='analysis')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
-            # post_inflation member
-            self.qlink1_postinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation=list(range(1, self.numEnsembleModels+1, 1)))] = 0
-            self.z_gwsubbas_postinf_data.loc[dict(time=timestamp, daPhase='forecast', aggregation=list(range(1, self.numEnsembleModels+1, 1)))] = 0
+                # post_inflation mean
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_postinf_mean.{timestamp}.nc'))
+                self.qlink1_postinf.loc[dict(time=timestamp, daPhase='analysis')] = ncData.variables['qlink1'][self.linkIDCoords]
+                self.z_gwsubbas_postinf.loc[dict(time=timestamp, daPhase='analysis')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
-            # ANALYSIS
-            # mean
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_mean.{timestamp}.nc'))
-            self.qlink1_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='mean')] = ncData.variables['qlink1'][self.linkIDCoords]
-            self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='mean')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
-            
-            # stdev
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_sd.{timestamp}.nc'))
-            self.qlink1_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='sd')] = ncData.variables['qlink1'][self.linkIDCoords]
-            self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='sd')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
+                print("Loaded timestamp", timestamp)
+            print("Created assimilation data from scratch")
 
-            # member
-            for member in range(1, self.numEnsembleModels+1):
-                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_member_{str(member).rjust(4, "0")}.{timestamp}.nc'))
-                self.qlink1_data.loc[dict(time=timestamp, daPhase='analysis', aggregation=member)] = ncData.variables['qlink1'][self.linkIDCoords]
-                self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='analysis', aggregation=member)] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
-
-            # prior_inflation mean
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_priorinf_mean.{timestamp}.nc'))
-            self.qlink1_priorinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='mean')] = ncData.variables['qlink1'][self.linkIDCoords]
-            self.z_gwsubbas_priorinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='mean')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
-
-            # prior_inflation stdev
-            self.qlink1_priorinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='stdev')] = 0
-            self.z_gwsubbas_priorinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='stdev')] = 0
-
-            # prior_inflation member
-            self.qlink1_priorinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation=list(range(1, self.numEnsembleModels+1, 1)))] = 0
-            self.z_gwsubbas_priorinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation=list(range(1, self.numEnsembleModels+1, 1)))] = 0
-
-            # post_inflation mean
-            ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'analysis_postinf_mean.{timestamp}.nc'))
-            self.qlink1_postinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='mean')] = ncData.variables['qlink1'][self.linkIDCoords]
-            self.z_gwsubbas_postinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='mean')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
-
-            # post_inflation stdev
-            self.qlink1_postinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='stdev')] = 0
-            self.z_gwsubbas_postinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation='stdev')] = 0
-
-            # post_inflation member
-            self.qlink1_postinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation=list(range(1, self.numEnsembleModels+1, 1)))] = 0
-            self.z_gwsubbas_postinf_data.loc[dict(time=timestamp, daPhase='analysis', aggregation=list(range(1, self.numEnsembleModels+1, 1)))] = 0
-
-            # increment
-            # qlink1 mean
-            # qlink1 stdev
-            # qlink1 member
-            # z_gwsubbas mean
-            # z_gwsubbas stdev
-            # z_gwsubbas member
-            # prior_inflation mean
-            # prior_inflation stdev
-            # prior_inflation member
-            # post_inflation mean
-            # post_inflation stdev
-            # post_inflation member
-
-        self.xrDataset = self.xrDataset.assign(variables={
-            'qlink1_data': self.qlink1_data, 
-            'z_gwsubbas_data': self.z_gwsubbas_data, 
-            'qlink1_priorinf_data': self.qlink1_priorinf_data,
-            'z_gwsubbas_priorinf_data': self.z_gwsubbas_priorinf_data,
-            'qlink1_postinf_data': self.qlink1_postinf_data,
-            'z_gwsubbas_postinf_data': self.z_gwsubbas_postinf_data
-        })
+        datacube.addDataArray('qlink1_data', self.qlink1_data)
+        datacube.addDataArray('z_gwsubbas_data', self.z_gwsubbas_data)
+        datacube.addDataArray('qlink1_priorinf', self.qlink1_priorinf)
+        datacube.addDataArray('z_gwsubbas_priorinf', self.z_gwsubbas_priorinf)
+        datacube.addDataArray('qlink1_postinf', self.qlink1_postinf)
+        datacube.addDataArray('z_gwsubbas_postinf', self.z_gwsubbas_postinf)
 
     def getUIParameters(self):
         return {
@@ -194,7 +163,7 @@ class AssimilationData:
     
     def getTimestamps(self):
         return self.timestamps
-    
+
     def getStateData(self, timestamp, aggregation, daStage, stateVariable, inflation=None):
         # for map visualization
         print(timestamp, aggregation, daStage, stateVariable, inflation)
@@ -386,22 +355,36 @@ class AssimilationData:
 
         return hydrographData
 
-    def getMapData(self, timestamp, aggregation, daStage, stateVariable, inflation=None):
-        dataArrayKey = f'{stateVariable}{"_"+inflation+"_" if inflation else "_"}data'
-        if daStage == 'increment':
-            dataArray = self.xrDataset[dataArrayKey].sel(time=timestamp, daPhase='analysis', aggregation=aggregation) - \
-                        self.xrDataset[dataArrayKey].sel(time=timestamp, daPhase='forecast', aggregation=aggregation)
+    def getMapData(self, datacube, timestamp, aggregation, daStage, stateVariable, inflation=None):
+        # for map visualization
+        print(timestamp, aggregation, daStage, stateVariable, inflation)
+        
+        if inflation:
+            dataArrayKey = f'{stateVariable}_{inflation}'
+            dataArray = datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase=daStage)
         else:
-            dataArray = self.xrDataset[dataArrayKey].sel(time=timestamp, daPhase=daStage, aggregation=aggregation)
+            dataArrayKey = f'{stateVariable}_data'
+            if daStage == 'increment':
+                dataArray = datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase='analysis', aggregation=aggregation) - \
+                            datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase='preassim', aggregation=aggregation)
+            else:
+                dataArray = datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase=daStage, aggregation=aggregation)
 
         # TODO: Check for converting array data to json using vectorized functions
-        renderData = []
-        for linkID in dataArray.coords['linkID']:
-            dataPoint = {
-                'linkID': linkID.item(),
-                stateVariable: dataArray.sel(linkID=linkID).item()
+        renderData = [
+            {
+                'linkID': lid.item(),
+                stateVariable: dataArray.sel(linkID=lid).item()
             }
-            renderData.append(dataPoint)
+            for lid in dataArray.coords['linkID']
+        ]
+
+        # for linkID in dataArray.coords['linkID']:
+        #     dataPoint = {
+        #         'linkID': linkID.item(),
+        #         stateVariable: dataArray.sel(linkID=linkID).item()
+        #     }
+        #     renderData.append(dataPoint)
 
         return renderData
     
@@ -416,7 +399,7 @@ class AssimilationData:
             dataPoint['memberID'] = memberID
             dataPoint[stateVariable] = {
                 'analysis': dataArray.sel(aggregation=memberID, daPhase='analysis').item(),
-                'forecast': dataArray.sel(aggregation=memberID, daPhase='forecast').item()
+                'forecast': dataArray.sel(aggregation=memberID, daPhase='preassim').item()
             }
             renderData.append(dataPoint)
 
@@ -436,18 +419,18 @@ class AssimilationData:
             dataPoint = {}
 
             dataPoint['timestamp'] = timestamp
-            dataPoint['forecast'] = dataArray.sel(time=timestamp, daPhase='forecast', aggregation=aggregation).item()
+            dataPoint['forecast'] = dataArray.sel(time=timestamp, daPhase='preassim', aggregation=aggregation).item()
             dataPoint['analysis'] = dataArray.sel(time=timestamp, daPhase='analysis', aggregation=aggregation).item()
             
             if aggregation == 'sd':
-                dataPoint['forecastSdMax'] = dataArray.sel(time=timestamp, daPhase='forecast', aggregation='sd').item()
-                dataPoint['forecastSdMin'] = dataArray.sel(time=timestamp, daPhase='forecast', aggregation='sd').item()
+                dataPoint['forecastSdMax'] = dataArray.sel(time=timestamp, daPhase='preassim', aggregation='sd').item()
+                dataPoint['forecastSdMin'] = dataArray.sel(time=timestamp, daPhase='preassim', aggregation='sd').item()
                 dataPoint['analysisSdMax'] = dataArray.sel(time=timestamp, daPhase='analysis', aggregation='sd').item()
                 dataPoint['analysisSdMin'] = dataArray.sel(time=timestamp, daPhase='analysis', aggregation='sd').item()
 
             else:
-                dataPoint['forecastSdMax'] = (dataArray.sel(time=timestamp, daPhase='forecast', aggregation='mean') + dataArray.sel(time=timestamp, daPhase='forecast', aggregation='sd')).item()
-                dataPoint['forecastSdMin'] = (dataArray.sel(time=timestamp, daPhase='forecast', aggregation='mean') - dataArray.sel(time=timestamp, daPhase='forecast', aggregation='sd')).item()
+                dataPoint['forecastSdMax'] = (dataArray.sel(time=timestamp, daPhase='preassim', aggregation='mean') + dataArray.sel(time=timestamp, daPhase='preassim', aggregation='sd')).item()
+                dataPoint['forecastSdMin'] = (dataArray.sel(time=timestamp, daPhase='preassim', aggregation='mean') - dataArray.sel(time=timestamp, daPhase='preassim', aggregation='sd')).item()
                 dataPoint['analysisSdMax'] = (dataArray.sel(time=timestamp, daPhase='analysis', aggregation='mean') + dataArray.sel(time=timestamp, daPhase='analysis', aggregation='sd')).item()
                 dataPoint['analysisSdMin'] = (dataArray.sel(time=timestamp, daPhase='analysis', aggregation='mean') - dataArray.sel(time=timestamp, daPhase='analysis', aggregation='sd')).item()
 
@@ -457,7 +440,7 @@ class AssimilationData:
     
     def getInflationHydrographData(self, linkID, stateVariable, inflation):
         dataArrayKey = f'{stateVariable}_{inflation}_data'
-        dataArray = self.xrDataset[dataArrayKey].sel(linkID=linkID, aggregation='mean')
+        dataArray = self.xrDataset[dataArrayKey].sel(linkID=linkID)
 
         # TODO: Check for converting array data to json using vectorized functions
         renderData = {
@@ -468,7 +451,7 @@ class AssimilationData:
             dataPoint = {}
 
             dataPoint['timestamp'] = timestamp
-            dataPoint['forecast'] = dataArray.sel(time=timestamp, daPhase='forecast').item()
+            dataPoint['forecast'] = dataArray.sel(time=timestamp, daPhase='preassim').item()
             dataPoint['analysis'] = dataArray.sel(time=timestamp, daPhase='analysis').item()
 
             renderData.data.append(dataPoint)

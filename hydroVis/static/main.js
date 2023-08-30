@@ -1,5 +1,5 @@
 import { uiParameters } from './uiParameters.js';
-import { setupBaseMap, drawMapData, drawGaugeLocations } from './map.js';
+import { setupBaseMap, drawMapData, drawGaugeLocations, drawLinkData } from './map.js';
 import { setupDistributionPlot, drawDistribution } from './distribution.js';
 import { setupHydrographPlots, drawHydrographStateVariable, drawHydrographInflation } from './hydrograph.js';
 import { getJSDateObjectFromTimestamp, wrfHydroStateVariables } from './helper.js';
@@ -184,6 +184,7 @@ async function init() {
     const defaultParameters = await setupControlPanel();
     uiParameters.init(defaultParameters);
 
+    await drawLinkData();
     drawMapData();
 }
 

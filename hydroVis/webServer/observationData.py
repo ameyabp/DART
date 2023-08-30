@@ -4,16 +4,14 @@ import os
 import numpy as np
 
 from .helper import obs_seq_to_netcdf_wrapper
-from .helper import daPhaseCoords, aggregationCoords
 
 # Class definition for parsing observation data
 # and creating xarray dataArray data structure from it
 
 class ObservationData:
-    def __init__(self, modelFilesPath, timestampList, xrDataset):
+    def __init__(self, modelFilesPath, timestampList, datacube, createXarrayFromScratch):
         self.timestampList = timestampList
         self.modelFilesPath = modelFilesPath
-        self.xrDataset = xrDataset
         # convert obs_seq file to netcdf format
         obs_seq_to_netcdf_wrapper(self.modelFilesPath)
 
@@ -34,38 +32,50 @@ class ObservationData:
                 self.observedLinkDataIndexes[-linkID] = []
             self.observedLinkDataIndexes[-linkID].append(idx)
 
-        ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', self.timestampList[0], f'obs_seq.final.{self.timestampList[0]}.nc'))
-        self.linkIDCoords = np.unique(-1 * ncData.variables['obs_type'][:])
-
-        self.observation_gauge_data = xr.DataArray(
-            data=np.ndarray((len(self.linkIDCoords), len(self.timestampList))),#, len(daPhaseCoords), len(aggregationCoords))), 
-            coords={'linkID': self.linkIDCoords, 'time': self.timestampList},#, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
-            dims=['linkID', 'time'],#, 'daPhase', 'aggregation'], 
-            name='observation_gauge_data'
-        )
-
-        self.observation_gauge_location_data = xr.DataArray(
-            data=np.ndarray((len(self.linkIDCoords), 2)),
-            coords={'linkID': self.linkIDCoords, 'location': ['lon', 'lat']},
-            dims=['linkID', 'location'],
-            name='observation_gauge_locations'
-        )
+        self.linkIDCoords = set()
 
         for timestamp in self.timestampList:
+            # iterate over all the obs_seq files once to gather all the gauge (link) IDs
+            # different obs_seq files have different gauge (link) IDs
             ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'obs_seq.final.{timestamp}.nc'))
+            self.linkIDCoords.update(set(-1 * ncData.variables['obs_type'][:]))
 
-            for linkID in np.unique(ncData.variables['obs_type']):
-                linkIDIndexes = np.where(ncData.variables['obs_type'][:] == linkID)[0]
-                self.observation_gauge_data.loc[dict(linkID=-linkID, time=timestamp)] = np.average(ncData.variables['observations'][linkIDIndexes,0])
+        self.linkIDCoords = list(self.linkIDCoords)
 
-        for linkID in np.unique(ncData.variables['obs_type']):
-            linkIDIndex = np.where(ncData.variables['obs_type'][:] == linkID)[0][0]
-            self.observation_gauge_location_data.loc[dict(linkID=-linkID, location=['lon', 'lat'])] = ncData.variables['location'][linkIDIndex, :2]
+        if not createXarrayFromScratch and os.path.exists(os.path.join('datacube', 'observation_gauge_data.nc')) \
+            and os.path.exists(os.path.join('datacube', 'observation_gauge_locations.nc')):
 
-        self.xrDataset = self.xrDataset.assign(variables={
-            'observation_gauge_data': self.observation_gauge_data,
-            'observation_gauge_locations': self.observation_gauge_location_data
-        })
+            self.observation_gauge_data = xr.open_dataarray(os.path.join('datacube', 'observation_gauge_data.nc'))
+            self.observation_gauge_locations = xr.open_dataarray(os.path.join('datacube', 'observation_gauge_locations.nc'))
+            print("Read observation data from files")
+        else:            
+            self.observation_gauge_data = xr.DataArray(
+                data=np.full((len(self.linkIDCoords), len(self.timestampList)), fill_value=-1),#, len(daPhaseCoords), len(aggregationCoords))), 
+                coords={'linkID': self.linkIDCoords, 'time': self.timestampList},#, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
+                dims=['linkID', 'time'],#, 'daPhase', 'aggregation'], 
+                name='observation_gauge_data'
+            )
+
+            self.observation_gauge_locations = xr.DataArray(
+                data=np.ndarray((len(self.linkIDCoords), 2)),
+                coords={'linkID': self.linkIDCoords, 'location': ['lon', 'lat']},
+                dims=['linkID', 'location'],
+                name='observation_gauge_locations'
+            )
+
+            for timestamp in self.timestampList:
+                ncData = nc.Dataset(os.path.join(self.modelFilesPath, 'output', timestamp, f'obs_seq.final.{timestamp}.nc'))
+
+                for linkID in np.unique(ncData.variables['obs_type']):
+                    linkIDIndexes = np.where(ncData.variables['obs_type'][:] == linkID)[0]
+                    self.observation_gauge_data.loc[dict(linkID=-linkID, time=timestamp)] = np.average(ncData.variables['observations'][linkIDIndexes, 0])
+
+                    linkIDIndex = linkIDIndexes[0]
+                    self.observation_gauge_locations.loc[dict(linkID=-linkID, location=['lon', 'lat'])] = ncData.variables['location'][linkIDIndex, :2]
+            print("Created observation data from scratch")
+
+        datacube.addDataArray('observation_gauge_data', self.observation_gauge_data)
+        datacube.addDataArray('observation_gauge_locations', self.observation_gauge_locations)
 
     def getHydrographStateVariableData(self, linkID, aggregation):
         hydrographData = {}
@@ -130,32 +140,34 @@ class ObservationData:
         return gaugeLocationData
 
     def getObservationGaugeLocationData(self):
-        gaugeLocationData = []
-
-        for linkID in self.observation_gauge_location_data.coords['linkID']:
-            location = self.observation_gauge_location_data.sel(linkID=linkID)
-            gaugeLocationData.append({
-                'linkID': linkID,
-                'location': [
-                    location[0].item(),
-                    location[1].item(),
-                ]
-            })
+        gaugeLocationData = [
+            {
+                'linkID': lid.item(), 
+                'location': self.observation_gauge_location_data.sel(linkID=lid, location=['lon', 'lat'].data.tolist())
+            } 
+            for lid in self.observation_gauge_location_data.coords['linkID']
+        ]
 
         return gaugeLocationData
     
-    def getObservationDataForHydrograph(self, linkID, aggregation):
+    def getObservationDataForHydrograph(self, linkID):
         renderData = {
             'linkID': linkID,
-            'data': []
+            'data': [
+                {
+                    'timestamp': timestamp,
+                    'observation': self.observation_gauge_data.sel(linkID=linkID, time=timestamp).item()
+                }
+                for timestamp in self.timestampList
+            ]
         }
 
-        for timestamp in self.timestampList:
-            dataPoint = {
-                'timestamp': timestamp,
-                'observation': self.observation_gauge_data.sel(linkID=linkID, time=timestamp).item()
-            }
+        # for timestamp in self.timestampList:
+        #     dataPoint = {
+        #         'timestamp': timestamp,
+        #         'observation': self.observation_gauge_data.sel(linkID=linkID, time=timestamp).item()
+        #     }
 
-            renderData.data.append(dataPoint)
+        #     renderData.data.append(dataPoint)
 
         return renderData

@@ -1,11 +1,14 @@
 import os
 import json
+import math
 import argparse
 import xarray as xr
 from flask import Flask, render_template, request
+from time import time_ns
 
-from webServer.assimilationData import AssimilationData
+from webServer.dataCube import DataCube
 from webServer.routeLink import RouteLinkData
+from webServer.assimilationData import AssimilationData
 from webServer.observationData import ObservationData
 from webServer.openloopData import OpenLoopData
 
@@ -17,25 +20,46 @@ if __name__=='__main__':
     parser.add_argument('-ol', '--openLoopDataPath', required=True)
     parser.add_argument('-rl', '--routeLinkFilePath', required=True)
     parser.add_argument('-p', '--portNum', type=int, default=8000)
+    parser.add_argument('-xr', '--createXarrayFromScratch', action='store_true')
 
     args = parser.parse_args()
 
-    # initialize xarray dataset
-    # this will be our in-memory multidimensional array database i.e. datacube
-    xrDataset = xr.Dataset()
+    datacube = DataCube()
 
-    rlData = RouteLinkData(args.routeLinkFilePath, xrDataset)
-    ensemble = AssimilationData(args.daDataPath, rlData, xrDataset)
-    observations = ObservationData(args.daDataPath, ensemble.timestamps, xrDataset)
-    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, ensemble.numEnsembleModels, rlData, xrDataset)
-    
+    print(args.createXarrayFromScratch)
+
+    rlData = RouteLinkData(args.routeLinkFilePath, datacube, args.createXarrayFromScratch)
+    print("Loaded route link data")
+    ensemble = AssimilationData(args.daDataPath, rlData, datacube, args.createXarrayFromScratch)
+    print("Loaded assimilation data")
+    observations = ObservationData(args.daDataPath, ensemble.timestamps, datacube, args.createXarrayFromScratch)
+    print("Loaded observation data")
+    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, ensemble.numEnsembleModels, rlData, datacube, args.createXarrayFromScratch)
+    print("Loaded open loop data")
+
+    # datacube bookkeeping
+    datacube.bookkeeping(args.createXarrayFromScratch)
+
     @app.route('/', methods=['GET'])
     def index():
         return render_template('index.html')
         
-    @app.route('/getStateData', methods=['POST'])
-    def getStateData():
+    @app.route('/getRouteLinkData', methods=['POST'])
+    def getRouteLinkData():
+        print("Received routelinkdata request", time_ns())
         if request.method == 'POST':
+            start = time_ns()
+            routeLinkData = json.dumps(rlData.getRouteLinkData())
+            print(f'getRouteLinkData: {(time_ns() - start) * math.pow(10, -6)} ms')
+            return routeLinkData
+        else:
+            print('Expected POST method, but received ' + request.method)
+
+    @app.route('/getMapData', methods=['POST'])
+    def getStateData():
+        print("received getmapdata request", time_ns())
+        if request.method == 'POST':
+            start = time_ns()
             query = json.loads(request.data)
             timestamp = query['timestamp']
             aggregation = query['aggregation']
@@ -43,8 +67,11 @@ if __name__=='__main__':
             stateVariable = query['stateVariable']
             inflation = None if query['inflation'] == 'none' else query['inflation']
 
-            stateData = ensemble.getStateData(timestamp, aggregation, daStage, stateVariable, inflation)
-            return json.dumps(stateData)
+            # stateData = json.dumps(ensemble.getStateData(timestamp, aggregation, daStage, stateVariable, inflation))
+            stateData = json.dumps(ensemble.getMapData(datacube, timestamp, aggregation, daStage, stateVariable, inflation))
+
+            print(f'getMapData: {(time_ns() - start) * math.pow(10, -6)} ms')
+            return stateData
         else:
             print('Expected POST method, but received ' + request.method)
 
@@ -103,21 +130,27 @@ if __name__=='__main__':
     @app.route('/getGaugeLocations', methods=['GET'])
     def getGaugeLocations():
         if request.method == 'GET':
-            return json.dumps(observations.getGaugeLocations())
+            start = time_ns()
+            # gaugeLocationData = json.dumps(observations.getGaugeLocations())
+            gaugeLocationData = json.dumps(observations.getObservationGaugeLocationData())
+            print(f'getGaugeLocations: {(time_ns() - start) * math.pow(10, -6)} ms')
+            return gaugeLocationData
         else:
             print('Expected GET method, but received ' + request.method)
 
     @app.route('/getHydrographInflationData', methods=['POST'])
     def getHydrographInflationData():
         if request.method == 'POST':
+            start = time_ns()
             query = json.loads(request.data)
             linkID = query['linkID']
             stateVariable = query['stateVariable']
             inflation = query['inflation']
 
-            hydrographData = ensemble.getHydrographInflationData(linkID, stateVariable, inflation)
-            return json.dumps(hydrographData)
+            hydrographData = json.dumps(ensemble.getHydrographInflationData(linkID, stateVariable, inflation))
+            print(f'getInflationHydrographData: {(time_ns() - start) * math.pow(10, -6)} ms')
+            return hydrographData
         else:
             print('Expected POST method, but received ' + request.method)
 
-    app.run(host='127.0.0.1', port=args.portNum, debug=True, use_evalex=False, use_reloader=True)
+    app.run(host='127.0.0.1', port=args.portNum, debug=True, use_evalex=False, use_reloader=False)
