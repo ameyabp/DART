@@ -47,7 +47,7 @@ class ObservationData:
 
             self.observation_gauge_data = xr.open_dataarray(os.path.join('datacube', 'observation_gauge_data.nc'))
             self.observation_gauge_locations = xr.open_dataarray(os.path.join('datacube', 'observation_gauge_locations.nc'))
-            print("Read observation data from files")
+
         else:            
             self.observation_gauge_data = xr.DataArray(
                 data=np.full((len(self.linkIDCoords), len(self.timestampList)), fill_value=-1),#, len(daPhaseCoords), len(aggregationCoords))), 
@@ -72,7 +72,6 @@ class ObservationData:
 
                     linkIDIndex = linkIDIndexes[0]
                     self.observation_gauge_locations.loc[dict(linkID=-linkID, location=['lon', 'lat'])] = ncData.variables['location'][linkIDIndex, :2]
-            print("Created observation data from scratch")
 
         datacube.addDataArray('observation_gauge_data', self.observation_gauge_data)
         datacube.addDataArray('observation_gauge_locations', self.observation_gauge_locations)
@@ -142,17 +141,17 @@ class ObservationData:
     def getObservationGaugeLocationData(self):
         gaugeLocationData = [
             {
-                'linkID': lid.item(), 
-                'location': self.observation_gauge_location_data.sel(linkID=lid, location=['lon', 'lat'].data.tolist())
+                'gaugeID': lid.item(), 
+                'location': self.observation_gauge_locations.sel(linkID=lid, location=['lon', 'lat']).data.tolist()
             } 
-            for lid in self.observation_gauge_location_data.coords['linkID']
+            for lid in self.observation_gauge_locations.coords['linkID']
         ]
 
         return gaugeLocationData
     
     def getObservationDataForHydrograph(self, linkID):
         renderData = {
-            'linkID': linkID,
+            'gaugeID': linkID,
             'data': [
                 {
                     'timestamp': timestamp,

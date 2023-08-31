@@ -185,7 +185,7 @@ async function init() {
     uiParameters.init(defaultParameters);
 
     await drawLinkData();
-    drawMapData();
+    await drawMapData();
 }
 
 init();

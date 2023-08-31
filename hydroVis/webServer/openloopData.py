@@ -1,8 +1,6 @@
 import netCDF4 as nc
 import os
 
-import xarray as xr
-
 # Class definition for parsing openloop data
 # and creating xarray dataArray data structure from it
 
@@ -32,5 +30,3 @@ class OpenLoopData:
                     ncData = nc.Dataset(os.path.join(dataFilesPath, 'output', timestamp, f'preassim_member_{str(memberID).rjust(4, "0")}.{timestamp}.nc'))
                     self.qlink1_data.loc[dict(time=timestamp, daPhase='openloop', aggregation=str(memberID))] = ncData.variables['qlink1'][self.linkIDCoords]
                     self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='openloop', aggregation=str(memberID))] = ncData.variables['z_gwsubbas'][self.linkIDCoords]        
-
-            print("Created openloop data from scratch")

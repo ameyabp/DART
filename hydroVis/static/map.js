@@ -43,16 +43,18 @@ class mapPlotParams {
     static colorInterpolator = d3.interpolateWarm;
     // possible options for color schemes
     // d3.interpolateWarm, d3.interpolateViridis, d3.interpolateCool, d3.interpolatePlasma
-    static getMapColorScale(data) {
-        return d3.scaleSequential(this.colorInterpolator)
-                .domain(data.toReversed());
+    static colorScale = null;
+    static setMapColorScale(data) {
+        this.colorScale = d3.scaleSequential(this.colorInterpolator)
+                                .domain(data.toReversed());
     }
 
-    static sizeRange = [0.5, 5]
-    static getMapSizeScale(data) {
-        return d3.scaleLinear()
-                .domain(data)
-                .range(this.sizeRange);
+    static sizeRange = [0.5, 5];
+    static sizeScale = null;
+    static setMapSizeScale(data) {
+        this.sizeScale = d3.scaleLinear()
+                                .domain(data)
+                                .range(this.sizeRange);
     }
 
     static projection = null;
@@ -563,6 +565,7 @@ export async function drawLinkData() {
         }
     })
     .then(function(data) {
+        console.log(data)
 
         d3.select("#wrf-hydro-data")
         .selectAll("path")
@@ -574,61 +577,10 @@ export async function drawLinkData() {
                     .attr("stroke-width", 1)
                     .attr("stroke", "black")
                     .style("fill", "None")
-                    // .on("mouseover", function(event, d) {
-                    //     d3.select(this)
-                    //         .transition()
-                    //         .duration(100)
-                    //         .attr("stroke-width", 2 * sizeScale(d[stateVariable]));
-                        
-                    //         mapPlotParams.tooltip.display(d);
-                    // })
-                    // .on("mousemove", function(event, d) {
-                    //     mapPlotParams.tooltip.move(event)
-                    // })
-                    // .on("mouseout", function(event, d) {
-                    //     d3.select(this)
-                    //         .transition()
-                    //         .duration(100)
-                    //         .attr("stroke-width", sizeScale(d[stateVariable]));
-
-                    //     mapPlotParams.tooltip.hide();
-                    // })
-                    // .on("click", function(event, d) {
-                    //     uiParameters.updateLinkSelection(d.linkID, d.line.coordinates[0], d.line.coordinates[1]);
-                    //     uiParameters.updateReadFromGaugeLocation(false);
-                    //     drawDistribution();
-                    //     drawHydrographStateVariable();
-                    //     drawHydrographInflation();
-                    // });
+                    .attr("coordinates", function(d) {
+                        return d.line.coordinates;
+                    });
             }
-            // function update(update) {
-            //     update.attr("d", function(d) {    return mapPlotParams.path(d.line); })
-            //         .attr("stroke-width", function(d) {
-            //             return sizeScale(d[stateVariable]);
-            //         })
-            //         .attr("stroke", function(d) {
-            //             return colorScale(d[stateVariable]);
-            //         })
-            //         .on("mouseover", function(event, d) {
-            //             d3.select(this)
-            //                 .transition()
-            //                 .duration(100)
-            //                 .attr("stroke-width", 2 * sizeScale(d[stateVariable]));
-                        
-            //                 mapPlotParams.tooltip.display(d);
-            //         })
-            //         .on("mousemove", function(event, d) {
-            //             mapPlotParams.tooltip.move(event)
-            //         })
-            //         .on("mouseout", function(event, d) {
-            //             d3.select(this)
-            //                 .transition()
-            //                 .duration(100)
-            //                 .attr("stroke-width", sizeScale(d[stateVariable]));
-
-            //             mapPlotParams.tooltip.hide();
-            //         });
-            // }
         )
     });
 }
@@ -660,29 +612,31 @@ export async function drawMapData() {
     .then(function(wrf_hydro_data) {
         console.log(wrf_hydro_data);
 
-        var colorScale = mapPlotParams.getMapColorScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
-        var sizeScale = mapPlotParams.getMapSizeScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
+        mapPlotParams.setMapColorScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
+        mapPlotParams.setMapSizeScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
 
         d3.select("#wrf-hydro-data")
             .selectAll("path")
             .data(wrf_hydro_data, d => d.linkID)
             .join(
-                function enter(enter) {
-                    enter.append("path")
-                        .attr("d", function(d) {    return mapPlotParams.path(d.line); })
-                        .attr("stroke-width", function(d) {
-                            return sizeScale(d[stateVariable]);
+                function enter(enter) {},
+                function update(update) {
+                    update.attr("stroke-width", function(d) {
+                            return mapPlotParams.sizeScale(d[stateVariable]);
                         })
                         .attr("stroke", function(d) {
-                            return colorScale(d[stateVariable]);
+                            return mapPlotParams.colorScale(d[stateVariable]);
                         })
-                        .style("fill", "None")
                         .on("mouseover", function(event, d) {
                             d3.select(this)
                                 .transition()
                                 .duration(100)
-                                .attr("stroke-width", 2 * sizeScale(d[stateVariable]));
+                                .attr("stroke-width", 2 * mapPlotParams.sizeScale(d[stateVariable]));
                             
+                                var coords = d3.select(this)
+                                                .attr("coordinates");
+                                d.coordinates = coords.split(',').map(x => parseFloat(x));
+
                                 mapPlotParams.tooltip.display(d);
                         })
                         .on("mousemove", function(event, d) {
@@ -692,44 +646,20 @@ export async function drawMapData() {
                             d3.select(this)
                                 .transition()
                                 .duration(100)
-                                .attr("stroke-width", sizeScale(d[stateVariable]));
-
+                                .attr("stroke-width", mapPlotParams.sizeScale(d[stateVariable]));
+                                
                             mapPlotParams.tooltip.hide();
                         })
                         .on("click", function(event, d) {
-                            uiParameters.updateLinkSelection(d.linkID, d.line.coordinates[0], d.line.coordinates[1]);
+                            var coords = d3.select(this)
+                                            .attr("coordinates");
+                            d.coordinates = coords.split(',').map(x => parseFloat(x));
+
+                            uiParameters.updateLinkSelection(d.linkID, d.coordinates.slice(0,2), d.coordinates.slice(2,4));
                             uiParameters.updateReadFromGaugeLocation(false);
                             drawDistribution();
                             drawHydrographStateVariable();
                             drawHydrographInflation();
-                        });
-                },
-                function update(update) {
-                    update.attr("d", function(d) {    return mapPlotParams.path(d.line); })
-                        .attr("stroke-width", function(d) {
-                            return sizeScale(d[stateVariable]);
-                        })
-                        .attr("stroke", function(d) {
-                            return colorScale(d[stateVariable]);
-                        })
-                        .on("mouseover", function(event, d) {
-                            d3.select(this)
-                                .transition()
-                                .duration(100)
-                                .attr("stroke-width", 2 * sizeScale(d[stateVariable]));
-                            
-                                mapPlotParams.tooltip.display(d);
-                        })
-                        .on("mousemove", function(event, d) {
-                            mapPlotParams.tooltip.move(event)
-                        })
-                        .on("mouseout", function(event, d) {
-                            d3.select(this)
-                                .transition()
-                                .duration(100)
-                                .attr("stroke-width", sizeScale(d[stateVariable]));
-
-                            mapPlotParams.tooltip.hide();
                         });
                 }
             )

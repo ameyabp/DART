@@ -1,8 +1,6 @@
-import os
 import json
 import math
 import argparse
-import xarray as xr
 from flask import Flask, render_template, request
 from time import time_ns
 
@@ -26,8 +24,6 @@ if __name__=='__main__':
 
     datacube = DataCube()
 
-    print(args.createXarrayFromScratch)
-
     rlData = RouteLinkData(args.routeLinkFilePath, datacube, args.createXarrayFromScratch)
     print("Loaded route link data")
     ensemble = AssimilationData(args.daDataPath, rlData, datacube, args.createXarrayFromScratch)
@@ -46,7 +42,6 @@ if __name__=='__main__':
         
     @app.route('/getRouteLinkData', methods=['POST'])
     def getRouteLinkData():
-        print("Received routelinkdata request", time_ns())
         if request.method == 'POST':
             start = time_ns()
             routeLinkData = json.dumps(rlData.getRouteLinkData())
@@ -57,7 +52,6 @@ if __name__=='__main__':
 
     @app.route('/getMapData', methods=['POST'])
     def getStateData():
-        print("received getmapdata request", time_ns())
         if request.method == 'POST':
             start = time_ns()
             query = json.loads(request.data)

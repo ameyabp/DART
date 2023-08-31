@@ -36,7 +36,7 @@ class RouteLinkData:
         if not createXarrayFromScratch and os.path.exists(os.path.join('datacube', 'routeLinkData.nc')):
             self.linkData = xr.open_dataarray(os.path.join('datacube', 'routeLinkData.nc'))
             # TODO: Check additional options for reading netcdf files into xarray data array
-            print("Read routelink data from file")
+
         else:
             self.linkData = xr.DataArray(
                 data=np.ndarray((len(self.linkIDCoords), len(linkDescriptor))),
@@ -68,8 +68,6 @@ class RouteLinkData:
                     self.linkData.loc[dict(linkID=linkIDArrayIndex+1, descriptor='dstLon')] = self.lon[i]
                     self.linkData.loc[dict(linkID=linkIDArrayIndex+1, descriptor='gauge')] = 0
                     # TODO: Update gauge descriptor as per gauge location data from routelink and obs_seq files
-            
-            print("Created routelink data from scratch")
 
         datacube.addDataArray('routeLinkData', self.linkData)
 

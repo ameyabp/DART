@@ -45,7 +45,7 @@ class AssimilationData:
             self.z_gwsubbas_priorinf = xr.open_dataarray(os.path.join('datacube', 'z_gwsubbas_priorinf.nc'))
             self.qlink1_postinf = xr.open_dataarray(os.path.join('datacube', 'qlink1_postinf.nc'))
             self.z_gwsubbas_postinf = xr.open_dataarray(os.path.join('datacube', 'z_gwsubbas_postinf.nc'))
-            print("Read assimilation data from files")
+
         else:
             self.qlink1_data = xr.DataArray(
                 data=np.ndarray((len(self.linkIDCoords), len(self.timeCoords), len(self.stateVariableDaPhaseCoords), len(self.stateVariableAggregationCoords))), 
@@ -145,7 +145,6 @@ class AssimilationData:
                 self.z_gwsubbas_postinf.loc[dict(time=timestamp, daPhase='analysis')] = ncData.variables['z_gwsubbas'][self.linkIDCoords]
 
                 print("Loaded timestamp", timestamp)
-            print("Created assimilation data from scratch")
 
         datacube.addDataArray('qlink1_data', self.qlink1_data)
         datacube.addDataArray('z_gwsubbas_data', self.z_gwsubbas_data)
@@ -365,10 +364,10 @@ class AssimilationData:
         else:
             dataArrayKey = f'{stateVariable}_data'
             if daStage == 'increment':
-                dataArray = datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase='analysis', aggregation=aggregation) - \
-                            datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase='preassim', aggregation=aggregation)
+                dataArray = datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase='analysis', aggregation=str(aggregation)) - \
+                            datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase='preassim', aggregation=str(aggregation))
             else:
-                dataArray = datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase=daStage, aggregation=aggregation)
+                dataArray = datacube.getDataArray(dataArrayKey).sel(time=timestamp, daPhase=daStage, aggregation=str(aggregation))
 
         # TODO: Check for converting array data to json using vectorized functions
         renderData = [
@@ -378,13 +377,6 @@ class AssimilationData:
             }
             for lid in dataArray.coords['linkID']
         ]
-
-        # for linkID in dataArray.coords['linkID']:
-        #     dataPoint = {
-        #         'linkID': linkID.item(),
-        #         stateVariable: dataArray.sel(linkID=linkID).item()
-        #     }
-        #     renderData.append(dataPoint)
 
         return renderData
     
@@ -398,8 +390,8 @@ class AssimilationData:
             dataPoint = {}
             dataPoint['memberID'] = memberID
             dataPoint[stateVariable] = {
-                'analysis': dataArray.sel(aggregation=memberID, daPhase='analysis').item(),
-                'forecast': dataArray.sel(aggregation=memberID, daPhase='preassim').item()
+                'analysis': dataArray.sel(aggregation=str(memberID), daPhase='analysis').item(),
+                'forecast': dataArray.sel(aggregation=str(memberID), daPhase='preassim').item()
             }
             renderData.append(dataPoint)
 
@@ -419,8 +411,8 @@ class AssimilationData:
             dataPoint = {}
 
             dataPoint['timestamp'] = timestamp
-            dataPoint['forecast'] = dataArray.sel(time=timestamp, daPhase='preassim', aggregation=aggregation).item()
-            dataPoint['analysis'] = dataArray.sel(time=timestamp, daPhase='analysis', aggregation=aggregation).item()
+            dataPoint['forecast'] = dataArray.sel(time=timestamp, daPhase='preassim', aggregation=str(aggregation)).item()
+            dataPoint['analysis'] = dataArray.sel(time=timestamp, daPhase='analysis', aggregation=str(aggregation)).item()
             
             if aggregation == 'sd':
                 dataPoint['forecastSdMax'] = dataArray.sel(time=timestamp, daPhase='preassim', aggregation='sd').item()

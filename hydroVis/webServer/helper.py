@@ -3,9 +3,6 @@ import f90nml
 import shutil
 import argparse
 
-daPhaseCoords = ['preassim', 'analysis', 'openloop']#, 'increment']
-aggregationCoords = ['mean', 'sd']
-
 def obs_seq_to_netcdf_wrapper(obs_data_dir):
     # wrapper function to convert obs_seq files to 
     # netcdf format for ease of parsing
