@@ -51,7 +51,7 @@ if __name__=='__main__':
             print('Expected POST method, but received ' + request.method)
 
     @app.route('/getMapData', methods=['POST'])
-    def getStateData():
+    def getMapData():
         if request.method == 'POST':
             start = time_ns()
             query = json.loads(request.data)
@@ -90,16 +90,20 @@ if __name__=='__main__':
         else:
             print('Expected GET method, but received ' + request.method)
 
-    @app.route('/getEnsembleData', methods=['POST'])
-    def getEnsembleData():
+    @app.route('/getDistributionData', methods=['POST'])
+    def getDistributionData():
         if request.method == 'POST':
+            start = time_ns()
             query = json.loads(request.data)
             timestamp = query['timestamp']
             stateVariable = query['stateVariable']
             linkID = query['linkID']
 
-            ensembleData = ensemble.getEnsembleData(timestamp, stateVariable, linkID)
-            return json.dumps(ensembleData)
+            # distributionData = ensemble.getDistributionData(timestamp, stateVariable, linkID)
+            distributionData = ensemble.getDistributionData(datacube, timestamp, stateVariable, linkID)
+            print(f'getDistributionData: {(time_ns() - start) * math.pow(10, -6)} ms')
+
+            return json.dumps(distributionData)
         else:
             print('Expected POST method, but received ' + request.method)
 

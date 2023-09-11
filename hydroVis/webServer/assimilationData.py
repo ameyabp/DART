@@ -380,20 +380,21 @@ class AssimilationData:
 
         return renderData
     
-    def getDistributionData(self, timestamp, stateVariable, linkID):
+    def getDistributionData(self, datacube, timestamp, stateVariable, linkID):
         dataArrayKey = f'{stateVariable}_data'
-        dataArray = self.xrDataset[dataArrayKey].sel(linkID=linkID, time=timestamp, aggregation=list(range(1, self.numEnsembleModels, 1)))
+        dataArray = datacube.getDataArray(dataArrayKey).sel(linkID=linkID, time=timestamp, aggregation=[str(memberID) for memberID in range(1, self.numEnsembleModels, 1)])
 
         # TODO: Check for converting array data to json using vectorized functions
-        renderData = []
-        for memberID in range(1, self.numEnsembleModels, 1):
-            dataPoint = {}
-            dataPoint['memberID'] = memberID
-            dataPoint[stateVariable] = {
-                'analysis': dataArray.sel(aggregation=str(memberID), daPhase='analysis').item(),
-                'forecast': dataArray.sel(aggregation=str(memberID), daPhase='preassim').item()
+        renderData = [
+            {
+                'memberID': memberID,
+                stateVariable: {
+                    'analysis': dataArray.sel(aggregation=str(memberID), daPhase='analysis').item(),
+                    'forecast': dataArray.sel(aggregation=str(memberID), daPhase='preassim').item()
+                }
             }
-            renderData.append(dataPoint)
+            for memberID in range(1, self.numEnsembleModels, 1)
+        ]
 
         return renderData
     

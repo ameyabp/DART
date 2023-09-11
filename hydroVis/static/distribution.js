@@ -286,7 +286,7 @@ export async function drawDistribution() {
     // TODO: check if new data really needs to be fetched, 
     // or can we simply used already fetched data
 
-    d3.json('/getEnsembleData',
+    d3.json('/getDistributionData',
     {
         method: 'POST',
         headers: {
@@ -302,9 +302,13 @@ export async function drawDistribution() {
 
         // recompute and rerender X axis
         var xScale = d3.scaleLinear()
+                        // .domain([
+                        //     d3.min(data.ensembleData, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])),// * 0.9, // extend the min and max value to handle
+                        //     d3.max(data.ensembleData, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))// * 1.1  // the case where all values fall in the same bin
+                        // ])
                         .domain([
-                            d3.min(data.ensembleData, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])),// * 0.9, // extend the min and max value to handle
-                            d3.max(data.ensembleData, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))// * 1.1  // the case where all values fall in the same bin
+                            d3.min(data, d => Math.min(d[stateVariable]['analysis'], d[stateVariable]['forecast'])),// * 0.9, // extend the min and max value to handle
+                            d3.max(data, d => Math.max(d[stateVariable]['analysis'], d[stateVariable]['forecast']))// * 1.1  // the case where all values fall in the same bin
                         ])
                         .range([0, distributionPlotParams.plotWidth])
                         .nice();
@@ -312,8 +316,12 @@ export async function drawDistribution() {
         d3.select(`#distribution-xAxis`)
             .call(distributionPlotParams.xAxis.scale(xScale));
 
-        const analysisBins = d3.histogram().domain(xScale.domain()).thresholds(xScale.ticks(50))(data.ensembleData.map(d => d[stateVariable]['analysis']));
-        const forecastBins = d3.histogram().domain(xScale.domain()).thresholds(xScale.ticks(50))(data.ensembleData.map(d => d[stateVariable]['forecast']));
+        // const analysisBins = d3.histogram().domain(xScale.domain()).thresholds(xScale.ticks(50))(data.ensembleData.map(d => d[stateVariable]['analysis']));
+        // const forecastBins = d3.histogram().domain(xScale.domain()).thresholds(xScale.ticks(50))(data.ensembleData.map(d => d[stateVariable]['forecast']));
+
+        const analysisBins = d3.histogram().domain(xScale.domain()).thresholds(xScale.ticks(50))(data.map(d => d[stateVariable]['analysis']));
+        const forecastBins = d3.histogram().domain(xScale.domain()).thresholds(xScale.ticks(50))(data.map(d => d[stateVariable]['forecast']));
+
         // const analysisDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['analysis']));
         // const forecastDensity = kernelDensityEstimator(kernelEpanechnikov(7), xScale.ticks(80))(data.ensembleData.map(d => d[stateVariable]['forecast']));
 
