@@ -65,6 +65,10 @@ class hydrographPlotParams {
         {
             daStage: 'Observations',
             color: '#e31a1c'    // red
+        },
+        {
+            daStage: 'Open loop',
+            color: '#000000'    // black
         }
     ]
 
@@ -168,6 +172,10 @@ function setupHydrographPlot(id, timestamps) {
     hydrographSvg.select(`#${id}-plot`)
                 .append("g")
                 .attr("id", `${id}-observation-data`);
+
+    hydrographSvg.select(`#${id}-plot`)
+                .append("g")
+                .attr("id", `${id}-openloop-data`);
 
     // legend
     hydrographSvg.select(`#${id}-plot`)
@@ -481,6 +489,292 @@ export async function drawHydrographStateVariable() {
     });
 }
 
+export async function drawHydrographStateVariableV2() {
+    const stateVariable = uiParameters.stateVariable;
+    const aggregation = uiParameters.aggregation;
+    const linkID = uiParameters.linkID;
+    const readFromGaugeLocation = uiParameters.readFromGaugeLocation;
+
+    // TODO: check if new data really needs to be fetched, 
+    // or can we simply used already fetched data
+    if (!linkID)
+        return;
+
+    d3.json('/getHydrographStateVariableData',
+    {
+        method: 'POST',
+        headers: {
+            'Content-type': 'application/json; charset=UTF-8'
+        },
+        body: JSON.stringify({
+            linkID: linkID,
+            stateVariable: stateVariable,
+            aggregation: aggregation,
+            readFromGaugeLocation: readFromGaugeLocation
+        })
+    }).then(function(data) {
+        console.log(data);
+
+        // recompute and rerender Y axis
+        var yScale = null;
+        yScale = d3.scaleLinear()
+                    .domain([
+                        d3.min(data.data, function(d) {
+                            var min = Math.min(d.forecastSdMin, d.analysisSdMin, d.openloopSdMin, d.forecast, d.analysis, d.openloop);
+                            if (d.gaugeDataAvailable)
+                                return Math.min(min, d.observation);
+                            return min;
+                        }), 
+                        d3.max(data.data, function(d) {
+                            var max = Math.max(d.forecastSdMax, d.analysisSdMax, d.openloopSdMax, d.forecast, d.analysis, d.openloop);
+                            if (d.gaugeDataAvailable)
+                                return Math.max(max, d.observation);
+                            return max;
+                        })
+                    ])
+                    .range([hydrographPlotParams.plotHeight, 0])
+                    .nice();
+
+        d3.select('#hydrographSV-yAxis').call(hydrographPlotParams.yAxis.scale(yScale));
+
+        // recompute and rerender horizontal gridlines
+        d3.select('#hydrographSV-gridlines')
+            .selectAll("line")
+            .data(yScale.ticks(), d => d)
+            .join(
+                function enter(enter) {
+                    enter.append("line")
+                        .attr("x1", 0)
+                        .attr("x2", hydrographPlotParams.plotWidth)
+                        .attr("y1", d => yScale(d))
+                        .attr("y2", d => yScale(d))
+                        .style("stroke", "grey")
+                        .style("opacity", 0.2);
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("x1", 0)
+                        .attr("x2", hydrographPlotParams.plotWidth)
+                        .attr("y1", d => yScale(d))
+                        .attr("y2", d => yScale(d))
+                }
+            )
+
+        // render forecast data
+        d3.select('#hydrographSV-forecast-data')
+            .selectAll("#dataPath")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("id", "dataPath")
+                        .style("fill", "none")
+                        .style("stroke", "#33a02c")
+                        .style("stroke-width", hydrographPlotParams.strokeWidth)
+                        .style("opacity", 0.5)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.forecast);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.forecast);   })
+                        );
+                }
+            )
+
+        d3.select('#hydrographSV-forecast-data')
+            .selectAll("#sdPath")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("id", "sdPath")
+                        .style("fill", "#33a02c")
+                        .style("stroke", "#33a02c")
+                        .style("stroke-width", 0)
+                        .style("opacity", 0.2)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y0(function(d) {    return yScale(d.forecastSdMin);  })
+                                    .y1(function(d) {    return yScale(d.forecastSdMax);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y0(function(d) {    return yScale(d.forecastSdMin);  })
+                                    .y1(function(d) {    return yScale(d.forecastSdMax);  })
+                        );
+                }
+            )
+
+        // render analysis data
+        d3.select('#hydrographSV-analysis-data')
+            .selectAll("#dataPath")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("id", "dataPath")
+                        .style("fill", "none")
+                        .style("stroke", "#1f78b4")
+                        .style("stroke-width", hydrographPlotParams.strokeWidth)
+                        .style("opacity", 0.5)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.analysis);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.analysis);   })
+                        );
+                }
+            )
+
+        d3.select('#hydrographSV-analysis-data')
+            .selectAll("#sdPath")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("id", "sdPath")
+                        .style("fill", "#1f78b4")
+                        .style("stroke", "#1f78b4")
+                        .style("stroke-width", 0)
+                        .style("opacity", 0.2)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y0(function(d) {    return yScale(d.analysisSdMin);  })
+                                    .y1(function(d) {    return yScale(d.analysisSdMax);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y0(function(d) {    return yScale(d.analysisSdMin);  })
+                                    .y1(function(d) {    return yScale(d.analysisSdMax);  })
+                        );
+                }
+            )
+
+        // if (readFromGaugeLocation && stateVariable === 'qlink1' && aggregation !== 'sd') {
+        // render observation data
+        // if (gaugeDataAvailable) {
+        d3.select('#hydrographSV-observation-data')
+            .selectAll("path")
+            .data(data.data)
+            .filter(function(d) {
+                return d.gaugeDataAvailable;
+            })
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .style("stroke", "#e31a1c")
+                        .style("stroke-width", hydrographPlotParams.strokeWidth)
+                        .style("opacity", 0.5)
+                        .attr("d", d3.symbol().size(16).type(d3.symbolTimes))
+                        .attr("transform", function(d) {
+                            return `translate(
+                                ${hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp))} ,
+                                ${yScale(d.observation)}
+                            )`;
+                        });
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.symbol().size(16).type(d3.symbolTimes))
+                        .attr("transform", function(d) {
+                            return `translate(
+                                ${hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp))} ,
+                                ${yScale(d.observation)}
+                            )`;
+                        });
+                }
+            )
+
+        // render open loop data
+        d3.select('#hydrographSV-openloop-data')
+            .selectAll("#dataPath")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("id", "dataPath")
+                        .style("fill", "none")
+                        .style("stroke", "#000000")
+                        .style("stroke-width", hydrographPlotParams.strokeWidth)
+                        .style("opacity", 0.5)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.openloop);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.line()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y(function(d) {    return yScale(d.openloop);   })
+                        );
+                }
+            )
+
+        d3.select('#hydrographSV-openloop-data')
+            .selectAll("#sdPath")
+            .data([data.data])
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("id", "sdPath")
+                        .style("fill", "#000000")
+                        .style("stroke", "#000000")
+                        .style("stroke-width", 0)
+                        .style("opacity", 0.2)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y0(function(d) {    return yScale(d.openloopSdMin);  })
+                                    .y1(function(d) {    return yScale(d.openloopSdMax);  })
+                        );
+                },
+                function update(update) {
+                    update.transition()
+                        .duration(200)
+                        .attr("d", d3.area()
+                                    .x(function(d) {    return hydrographPlotParams.xScale(getJSDateObjectFromTimestamp(d.timestamp));   })
+                                    .y0(function(d) {    return yScale(d.openloopSdMin);  })
+                                    .y1(function(d) {    return yScale(d.openloopSdMax);  })
+                        );
+                }
+            )
+
+        // render textual information
+        d3.select('#hydrographSV-text')
+            .text(function() {
+                if (aggregation == 'mean')
+                    return `Hydrograph for mean ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units})`;
+                else if (aggregation == 'sd')
+                    return `Hydrograph for standard deviation of ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units})`;
+                else
+                    return `Hydrograph of ${wrfHydroStateVariables[stateVariable].commonName} (${wrfHydroStateVariables[stateVariable].units}) for ensemble member ${aggregation}`;
+            })
+    });
+}
+
 export async function drawHydrographInflation() {
     const stateVariable = uiParameters.stateVariable;
     const linkID = uiParameters.linkID;
@@ -518,7 +812,7 @@ export async function drawHydrographInflation() {
             inflation: inflation
         })
     }).then(function(data) {
-        console.log(data);
+        // console.log(data);
 
         // recompute and rerender Y axis
         var yScale = d3.scaleLinear()

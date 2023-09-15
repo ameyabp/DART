@@ -6,13 +6,10 @@ class DataCube:
         self.xrDataset = xr.Dataset()
 
     def addDataArray(self, varName, array):
-        self.xrDataset = self.xrDataset.assign(variables={varName: array})
+        self.xrDataset = self.xrDataset.assign(variables={varName: array.load()})
 
     def getDataArray(self, varName):
-        return self.xrDataset[varName]
-    
-    def getSize(self):
-        return self.xrDataset
+        return self.xrDataset[varName].load()
     
     def compute_object_size(self):
         # obj should be an xarray dataset
@@ -23,10 +20,11 @@ class DataCube:
             os.mkdir('datacube')
             
         for varName in self.xrDataset.keys():
-            if createXarrayFromScratch and not os.path.exists(os.path.join('datacube', f'{varName}.nc')):
+            if not os.path.exists(os.path.join('datacube', f'{varName}.nc')):# and createXarrayFromScratch:
                 # don't have overwrite permission on glade
-                # TODO: handle overwrite issue correctly
-                self.xrDataset[varName].to_netcdf(path=os.path.join('datacube', f'{varName}.nc'), mode='w', format='NETCDF4')
+                # TODO: handle overwrite issue 
+                print(self.xrDataset[varName].load())
+                self.xrDataset[varName].load().to_netcdf(path=os.path.join('datacube', f'{varName}.nc'), mode='w', format='NETCDF4')
                 # TODO: check the dask and unlimited_dims options for live monitoring capabilities
 
     def bookkeeping(self, createXarrayFromScratch):

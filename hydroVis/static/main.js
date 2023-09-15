@@ -1,16 +1,16 @@
 import { uiParameters } from './uiParameters.js';
-import { setupBaseMap, drawMapData, drawGaugeLocations, drawLinkData } from './map.js';
+import { setupBaseMap, drawMapData, drawMapDataV2, drawGaugeLocations, drawLinkData } from './map.js';
 import { setupDistributionPlot, drawDistribution } from './distribution.js';
-import { setupHydrographPlots, drawHydrographStateVariable, drawHydrographInflation } from './hydrograph.js';
+import { setupHydrographPlots, drawHydrographStateVariable, drawHydrographStateVariableV2, drawHydrographInflation } from './hydrograph.js';
 import { getJSDateObjectFromTimestamp, wrfHydroStateVariables } from './helper.js';
 
 function updateStateVariable(stateVariable) {
     uiParameters.updateStateVariable(stateVariable);
     // call all the relevant renderer functions
-    drawMapData();
+    drawMapDataV2();
     if (uiParameters.linkID) {
         drawDistribution();
-        drawHydrographStateVariable();
+        drawHydrographStateVariableV2();
         drawHydrographInflation();
     }
 }
@@ -18,22 +18,22 @@ function updateStateVariable(stateVariable) {
 function updateAggregation(aggregation) {
     uiParameters.updateAggregation(aggregation);
     // call all the relevant renderer functions
-    drawMapData();
+    drawMapDataV2();
     if (uiParameters.linkID) {
-        drawHydrographStateVariable();
+        drawHydrographStateVariableV2();
     }
 }
 
 function updateDaStage(daStage) {
     uiParameters.updateDaStage(daStage);
     // call all the relevant renderer functions
-    drawMapData();
+    drawMapDataV2();
 }
 
 function updateInflation(inflation) {
     uiParameters.updateInflation(inflation);
     // call all the relevant renderer functions
-    drawMapData();
+    drawMapDataV2();
     if (uiParameters.linkID) {
         drawHydrographInflation();
     }
@@ -48,7 +48,7 @@ function updateShowGaugeLocations(showGaugeLocations) {
 function updateTimestamp(timestamp) {
     uiParameters.updateTimestamp(timestamp);
     // call all the relevant renderer functions
-    drawMapData();
+    drawMapDataV2();
     if (uiParameters.linkID) {
         drawDistribution();
     }
@@ -185,7 +185,8 @@ async function init() {
     uiParameters.init(defaultParameters);
 
     await drawLinkData();
-    await drawMapData();
+    await drawMapDataV2();
+    // await drawMapData();
 }
 
 init();

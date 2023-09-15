@@ -64,9 +64,18 @@ export function setupTooltip(vpWidth, vpHeight) {
 
     function setupTooltipContent(d) {
         if ('linkID' in d) {
-            // return "LinkID: " + d.linkID + "<br/>Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
-            //         d.line.coordinates[d.line.coordinates.length-1].map(x => x.toFixed(2)).join(', ') + 
-            //         (('qlink1' in d) ? ("<br/>Value: " + d3.format(".3")(d.qlink1) + " cu.m/s") : "") + (('z_gwsubbas' in d) ? "<br/>Value: " + d3.format(".3")(d.z_gwsubbas) + " m": "");
+            return "LinkID: " + d.linkID + "<br/>Src: " + d.line.coordinates[0].map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
+                    d.line.coordinates[d.line.coordinates.length-1].map(x => x.toFixed(2)).join(', ') + 
+                    (('qlink1' in d) ? ("<br/>Value: " + d3.format(".3")(d.qlink1) + " cu.m/s") : "") + (('z_gwsubbas' in d) ? "<br/>Value: " + d3.format(".3")(d.z_gwsubbas) + " m": "");
+        }
+        else {
+            const lon = (d.location[0] > 180) ? d.location[0] - 360 : ((d.location[0] < -180) ? d.location[0] + 360 : d.location[0]);
+            return "Gauge Location: (" + Math.round(lon * 100)/100 + ", " + Math.round(d.location[1] * 100)/100 + ")<br/>LinkID: " + d.gaugeID;
+        }
+    }
+
+    function setupTooltipContentV2(d) {
+        if ('linkID' in d) {
             return "LinkID: " + d.linkID + "<br/>Src: " + d.coordinates.slice(0,2).map(x => x.toFixed(2)).join(', ') + "<br/>Dst: " + 
                     d.coordinates.slice(2,4).map(x => x.toFixed(2)).join(', ') + 
                     (('qlink1' in d) ? ("<br/>Value: " + d3.format(".3")(d.qlink1) + " cu.m/s") : "") + (('z_gwsubbas' in d) ? "<br/>Value: " + d3.format(".3")(d.z_gwsubbas) + " m": "");
@@ -77,7 +86,8 @@ export function setupTooltip(vpWidth, vpHeight) {
         }
     }
 
-    const tooltip = new Tooltip(tooltipDiv, setupTooltipContent, vpWidth, vpHeight);
+    // const tooltip = new Tooltip(tooltipDiv, setupTooltipContent, vpWidth, vpHeight);
+    const tooltip = new Tooltip(tooltipDiv, setupTooltipContentV2, vpWidth, vpHeight);
     return tooltip;
 }
 

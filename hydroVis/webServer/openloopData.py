@@ -30,3 +30,6 @@ class OpenLoopData:
                     ncData = nc.Dataset(os.path.join(dataFilesPath, 'output', timestamp, f'preassim_member_{str(memberID).rjust(4, "0")}.{timestamp}.nc'))
                     self.qlink1_data.loc[dict(time=timestamp, daPhase='openloop', aggregation=str(memberID))] = ncData.variables['qlink1'][self.linkIDCoords]
                     self.z_gwsubbas_data.loc[dict(time=timestamp, daPhase='openloop', aggregation=str(memberID))] = ncData.variables['z_gwsubbas'][self.linkIDCoords]        
+
+            datacube.addDataArray('qlink1_data', self.qlink1_data)
+            datacube.addDataArray('z_gwsubbas_data', self.z_gwsubbas_data)

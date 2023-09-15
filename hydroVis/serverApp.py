@@ -1,4 +1,5 @@
 import json
+import os
 import math
 import argparse
 from flask import Flask, render_template, request
@@ -22,6 +23,7 @@ if __name__=='__main__':
 
     args = parser.parse_args()
 
+    start = time_ns()
     datacube = DataCube()
 
     rlData = RouteLinkData(args.routeLinkFilePath, datacube, args.createXarrayFromScratch)
@@ -30,9 +32,10 @@ if __name__=='__main__':
     print("Loaded assimilation data")
     observations = ObservationData(args.daDataPath, ensemble.timestamps, datacube, args.createXarrayFromScratch)
     print("Loaded observation data")
-    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, ensemble.numEnsembleModels, rlData, datacube, args.createXarrayFromScratch)
-    print("Loaded open loop data")
+    # openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, ensemble.numEnsembleModels, rlData, datacube, args.createXarrayFromScratch)
+    # print("Loaded open loop data")
 
+    print(f'createDatacube: {(time_ns() - start) * math.pow(10, -6)} ms')
     # datacube bookkeeping
     datacube.bookkeeping(args.createXarrayFromScratch)
 
@@ -44,7 +47,9 @@ if __name__=='__main__':
     def getRouteLinkData():
         if request.method == 'POST':
             start = time_ns()
+
             routeLinkData = json.dumps(rlData.getRouteLinkData())
+            
             print(f'getRouteLinkData: {(time_ns() - start) * math.pow(10, -6)} ms')
             return routeLinkData
         else:
@@ -99,29 +104,35 @@ if __name__=='__main__':
             stateVariable = query['stateVariable']
             linkID = query['linkID']
 
-            # distributionData = ensemble.getDistributionData(timestamp, stateVariable, linkID)
-            distributionData = ensemble.getDistributionData(datacube, timestamp, stateVariable, linkID)
+            # distributionData = json.dumps(ensemble.getEnsembleData(timestamp, stateVariable, linkID))
+            distributionData =json.dumps(ensemble.getDistributionData(datacube, timestamp, stateVariable, linkID))
+            
             print(f'getDistributionData: {(time_ns() - start) * math.pow(10, -6)} ms')
 
-            return json.dumps(distributionData)
+            return distributionData
         else:
             print('Expected POST method, but received ' + request.method)
 
     @app.route('/getHydrographStateVariableData', methods=['POST'])
     def getHydrographStateVariableData():
         if request.method == 'POST':
+            start = time_ns()
             query = json.loads(request.data)
             linkID = query['linkID']
             stateVariable = query['stateVariable']
             aggregation = query['aggregation']
-            readFromGaugeLocation = query['readFromGaugeLocation']
+            # readFromGaugeLocation = query['readFromGaugeLocation']
 
-            if readFromGaugeLocation and stateVariable == 'qlink1':
-                hydrographData = observations.getHydrographStateVariableData(linkID, aggregation)
-            else:
-                hydrographData = ensemble.getHydrographStateVariableData(linkID, aggregation, stateVariable)
+            # if readFromGaugeLocation and stateVariable == 'qlink1':
+            #     hydrographData = json.dumps(observations.getHydrographStateVariableData(linkID, aggregation))
+            # else:
+            #     hydrographData = json.dumps(ensemble.getHydrographStateVariableData(linkID, aggregation, stateVariable))
+
+            hydrographData = json.dumps(ensemble.getStateVariableHydrographData(datacube, linkID, aggregation, stateVariable))
+
+            print(f'getHydrographStateVariableData: {(time_ns() - start) * math.pow(10, -6)} ms')
             
-            return json.dumps(hydrographData)
+            return hydrographData
         else:
             print('Expected POST method, but received ' + request.method)
 
@@ -129,8 +140,10 @@ if __name__=='__main__':
     def getGaugeLocations():
         if request.method == 'GET':
             start = time_ns()
+            
             # gaugeLocationData = json.dumps(observations.getGaugeLocations())
             gaugeLocationData = json.dumps(observations.getObservationGaugeLocationData())
+            
             print(f'getGaugeLocations: {(time_ns() - start) * math.pow(10, -6)} ms')
             return gaugeLocationData
         else:
@@ -145,7 +158,9 @@ if __name__=='__main__':
             stateVariable = query['stateVariable']
             inflation = query['inflation']
 
-            hydrographData = json.dumps(ensemble.getHydrographInflationData(linkID, stateVariable, inflation))
+            # hydrographData = json.dumps(ensemble.getHydrographInflationData(linkID, stateVariable, inflation))
+            hydrographData = json.dumps(ensemble.getInflationHydrographData(datacube, linkID, stateVariable, inflation))
+
             print(f'getInflationHydrographData: {(time_ns() - start) * math.pow(10, -6)} ms')
             return hydrographData
         else:

@@ -298,7 +298,7 @@ export async function drawDistribution() {
                 linkID: linkID
             })
     }).then(function(data) {
-        console.log(data);
+        // console.log(data);
 
         // recompute and rerender X axis
         var xScale = d3.scaleLinear()

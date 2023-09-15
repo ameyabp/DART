@@ -1,7 +1,7 @@
 import { uiParameters } from './uiParameters.js';
 import { setupTooltip, wrfHydroStateVariables, captializeFirstLetter, downloadSvg } from './helper.js';
 import { drawDistribution } from "./distribution.js";
-import { drawHydrographStateVariable, drawHydrographInflation } from "./hydrograph.js";
+import { drawHydrographStateVariable, drawHydrographStateVariableV2, drawHydrographInflation } from "./hydrograph.js";
 
 class mapPlotParams {
     static nonConusStates = [
@@ -49,12 +49,23 @@ class mapPlotParams {
                                 .domain(data.toReversed());
     }
 
+    static getMapColorScale(data) {
+        return d3.scaleSequential(this.colorInterpolator)
+                .domain(data.toReversed());
+    }
+
     static sizeRange = [0.5, 5];
     static sizeScale = null;
     static setMapSizeScale(data) {
         this.sizeScale = d3.scaleLinear()
                                 .domain(data)
                                 .range(this.sizeRange);
+    }
+    
+    static getMapSizeScale(data) {
+        return d3.scaleLinear()
+                .domain(data)
+                .range(this.sizeRange);
     }
 
     static projection = null;
@@ -612,6 +623,113 @@ export async function drawMapData() {
     .then(function(wrf_hydro_data) {
         console.log(wrf_hydro_data);
 
+        var colorScale = mapPlotParams.getMapColorScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
+        var sizeScale = mapPlotParams.getMapSizeScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
+
+        d3.select("#wrf-hydro-data")
+            .selectAll("path")
+            .data(wrf_hydro_data, d => d.linkID)
+            .join(
+                function enter(enter) {
+                    enter.append("path")
+                        .attr("d", function(d) {    return mapPlotParams.path(d.line); })
+                        .attr("stroke-width", function(d) {
+                            return sizeScale(d[stateVariable]);
+                        })
+                        .attr("stroke", function(d) {
+                            if (d.linkID == 1666)
+                                return "black";
+                            return colorScale(d[stateVariable]);
+                        })
+                        .style("fill", "None")
+                        .on("mouseover", function(event, d) {
+                            d3.select(this)
+                                .transition()
+                                .duration(100)
+                                .attr("stroke-width", 2 * sizeScale(d[stateVariable]));
+                            
+                                mapPlotParams.tooltip.display(d);
+                        })
+                        .on("mousemove", function(event, d) {
+                            mapPlotParams.tooltip.move(event)
+                        })
+                        .on("mouseout", function(event, d) {
+                            d3.select(this)
+                                .transition()
+                                .duration(100)
+                                .attr("stroke-width", sizeScale(d[stateVariable]));
+
+                            mapPlotParams.tooltip.hide();
+                        })
+                        .on("click", function(event, d) {
+                            uiParameters.updateLinkSelection(d.linkID, d.line.coordinates[0], d.line.coordinates[1]);
+                            uiParameters.updateReadFromGaugeLocation(false);
+                            drawDistribution();
+                            drawHydrographStateVariable();
+                            drawHydrographInflation();
+                        });
+                },
+                function update(update) {
+                    update.attr("d", function(d) {    return mapPlotParams.path(d.line); })
+                        .attr("stroke-width", function(d) {
+                            return sizeScale(d[stateVariable]);
+                        })
+                        .attr("stroke", function(d) {
+                            return colorScale(d[stateVariable]);
+                        })
+                        .on("mouseover", function(event, d) {
+                            d3.select(this)
+                                .transition()
+                                .duration(100)
+                                .attr("stroke-width", 2 * sizeScale(d[stateVariable]));
+                            
+                                mapPlotParams.tooltip.display(d);
+                        })
+                        .on("mousemove", function(event, d) {
+                            mapPlotParams.tooltip.move(event)
+                        })
+                        .on("mouseout", function(event, d) {
+                            d3.select(this)
+                                .transition()
+                                .duration(100)
+                                .attr("stroke-width", sizeScale(d[stateVariable]));
+
+                            mapPlotParams.tooltip.hide();
+                        });
+                }
+            )
+
+        mapPlotParams.generateLegendTicks(wrf_hydro_data.map(d => d[stateVariable]), stateVariable);
+    })
+}
+
+export async function drawMapDataV2() {
+    const stateVariable = uiParameters.stateVariable;
+    const aggregation = uiParameters.aggregation;
+    const daStage = uiParameters.daStage;
+    const inflation = uiParameters.inflation;
+    const timestamp = uiParameters.timestamp;
+
+    // TODO: check if new data really needs to be fetched, 
+    // or can we simply used already fetched data
+
+    d3.json('/getMapData',
+    {
+        method: 'POST',
+        headers: {
+            'Content-type': 'application/json; charset=UTF-8'
+        },
+        body: JSON.stringify({
+                stateVariable: stateVariable,
+                aggregation: aggregation,
+                daStage: daStage,
+                inflation: inflation,
+                timestamp: timestamp,
+            })
+    })
+    .then(function(wrf_hydro_data) {
+        // console.log(wrf_hydro_data);
+
         mapPlotParams.setMapColorScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
         mapPlotParams.setMapSizeScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
 
@@ -658,7 +776,7 @@ export async function drawMapData() {
                             uiParameters.updateLinkSelection(d.linkID, d.coordinates.slice(0,2), d.coordinates.slice(2,4));
                             uiParameters.updateReadFromGaugeLocation(false);
                             drawDistribution();
-                            drawHydrographStateVariable();
+                            drawHydrographStateVariableV2();
                             drawHydrographInflation();
                         });
                 }
@@ -670,7 +788,7 @@ export async function drawMapData() {
 
 export function drawGaugeLocations() {
     const showGaugeLocations = uiParameters.showGaugeLocations;
-
+    
     if (showGaugeLocations) {
         d3.json('/getGaugeLocations',
         {
@@ -680,6 +798,7 @@ export function drawGaugeLocations() {
             }
         })
         .then(function(data) {
+            // console.log(data);
 
                 d3.select("#gauge-locations-data")
                     .selectAll("circle")
@@ -716,10 +835,10 @@ export function drawGaugeLocations() {
                             mapPlotParams.tooltip.hide();
                         })
                         .on("click", function(event, d) {
-                            uiParameters.updateLinkSelection(d.linkID, d.location, d.location);
+                            uiParameters.updateLinkSelection(d.gaugeID, d.location, d.location);
                             uiParameters.updateReadFromGaugeLocation(true);
                             drawDistribution();
-                            drawHydrographStateVariable();
+                            drawHydrographStateVariableV2();
                             drawHydrographInflation();
                         });
         });

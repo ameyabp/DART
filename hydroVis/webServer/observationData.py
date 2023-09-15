@@ -50,7 +50,7 @@ class ObservationData:
 
         else:            
             self.observation_gauge_data = xr.DataArray(
-                data=np.full((len(self.linkIDCoords), len(self.timestampList)), fill_value=-1),#, len(daPhaseCoords), len(aggregationCoords))), 
+                data=np.ndarray((len(self.linkIDCoords), len(self.timestampList))),#, len(daPhaseCoords), len(aggregationCoords))), 
                 coords={'linkID': self.linkIDCoords, 'time': self.timestampList},#, 'daPhase':daPhaseCoords, 'aggregation':aggregationCoords}, 
                 dims=['linkID', 'time'],#, 'daPhase', 'aggregation'], 
                 name='observation_gauge_data'
@@ -78,7 +78,7 @@ class ObservationData:
 
     def getHydrographStateVariableData(self, linkID, aggregation):
         hydrographData = {}
-        hydrographData['linkID'] = linkID
+        hydrographData['gaugeID'] = linkID
         
         if aggregation == 'mean' or aggregation == 'sd':
             hydrographData['agg'] = aggregation
@@ -132,11 +132,13 @@ class ObservationData:
 
         for linkID in self.observedLinkLocations:
             gaugeLocationData.append({
-                'linkID': int(linkID),
+                'gaugeID': int(linkID),
                 'location': self.observedLinkLocations[linkID]
             })
 
         return gaugeLocationData
+
+    # xarray data access
 
     def getObservationGaugeLocationData(self):
         gaugeLocationData = [
@@ -160,13 +162,5 @@ class ObservationData:
                 for timestamp in self.timestampList
             ]
         }
-
-        # for timestamp in self.timestampList:
-        #     dataPoint = {
-        #         'timestamp': timestamp,
-        #         'observation': self.observation_gauge_data.sel(linkID=linkID, time=timestamp).item()
-        #     }
-
-        #     renderData.data.append(dataPoint)
 
         return renderData
