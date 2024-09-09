@@ -422,7 +422,7 @@ class AssimilationData:
             dataPoint['forecast'] = dataArray.sel(time=timestamp, daPhase='preassim', aggregation=str(aggregation)).item()
             dataPoint['analysis'] = dataArray.sel(time=timestamp, daPhase='analysis', aggregation=str(aggregation)).item()
             dataPoint['openloop'] = dataArray.sel(time=timestamp, daPhase='openloop', aggregation=str(aggregation)).item()
-            print(dataPoint['openloop'])
+            # print(dataPoint['openloop'])
             
             obs_dataArray = datacube.getDataArray('observation_gauge_data').sel(time=timestamp)
             # print(linkID, obs_dataArray.coords['linkID'])

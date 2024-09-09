@@ -7,10 +7,12 @@ import { getJSDateObjectFromTimestamp, wrfHydroStateVariables } from './helper.j
 function updateStateVariable(stateVariable) {
     uiParameters.updateStateVariable(stateVariable);
     // call all the relevant renderer functions
-    drawMapDataV2();
+    // drawMapDataV2(); // xarray access
+    drawMapData();  // netcdf files access
     if (uiParameters.linkID) {
         drawDistribution();
-        drawHydrographStateVariableV2();
+        // drawHydrographStateVariableV2();    // xarray access
+        drawHydrographStateVariable();  // netcdf files access
         drawHydrographInflation();
     }
 }
@@ -18,22 +20,26 @@ function updateStateVariable(stateVariable) {
 function updateAggregation(aggregation) {
     uiParameters.updateAggregation(aggregation);
     // call all the relevant renderer functions
-    drawMapDataV2();
+    // drawMapDataV2(); // xarray access
+    drawMapData();  // netcdf files access
     if (uiParameters.linkID) {
-        drawHydrographStateVariableV2();
+        // drawHydrographStateVariableV2();    // xarray access
+        drawHydrographStateVariable();  // netcdf files access
     }
 }
 
 function updateDaStage(daStage) {
     uiParameters.updateDaStage(daStage);
     // call all the relevant renderer functions
-    drawMapDataV2();
+    // drawMapDataV2(); // xarray access
+    drawMapData();  // netcdf files access
 }
 
 function updateInflation(inflation) {
     uiParameters.updateInflation(inflation);
     // call all the relevant renderer functions
-    drawMapDataV2();
+    // drawMapDataV2(); // xarray access
+    drawMapData();  // netcdf files access
     if (uiParameters.linkID) {
         drawHydrographInflation();
     }
@@ -48,7 +54,8 @@ function updateShowGaugeLocations(showGaugeLocations) {
 function updateTimestamp(timestamp) {
     uiParameters.updateTimestamp(timestamp);
     // call all the relevant renderer functions
-    drawMapDataV2();
+    // drawMapDataV2(); // xarray access
+    drawMapData();  // netcdf files access
     if (uiParameters.linkID) {
         drawDistribution();
     }
@@ -184,9 +191,9 @@ async function init() {
     const defaultParameters = await setupControlPanel();
     uiParameters.init(defaultParameters);
 
-    await drawLinkData();
-    await drawMapDataV2();
-    // await drawMapData();
+    // await drawLinkData();
+    // await drawMapDataV2();
+    await drawMapData();
 }
 
 init();

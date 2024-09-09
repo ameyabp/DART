@@ -232,3 +232,7 @@ test_ran_unif
 !system_simulation/
 !wakeup_filter/
 
+# hydrovis
+hydroVis/data/
+hydroVis/datacube/
+hydroVis/env/

@@ -9,7 +9,7 @@ def obs_seq_to_netcdf_wrapper(obs_data_dir):
     # requires obs_seq_to_netcdf utility to be built
     # for the wrf_hydro model
 
-    cwd = os.getcwd()
+    cwd = os.getcwd()   # DART/hydrovis
     dartPath = cwd[:cwd.index('DART')+4]
 
     obs_seq_to_netcdf_dir_path = os.path.join(dartPath, 'models', 'wrf_hydro', 'work')
@@ -19,6 +19,7 @@ def obs_seq_to_netcdf_wrapper(obs_data_dir):
     
     nml_data = f90nml.read(os.path.join(obs_seq_to_netcdf_dir_path, 'input.nml'))
 
+    # set working directory to obs_seq_to_netcdf_utility_path for the utility to work correctly
     os.chdir(obs_seq_to_netcdf_dir_path)
     
     for timestamp in os.listdir(os.path.join(obs_data_dir, 'output')):
@@ -32,7 +33,6 @@ def obs_seq_to_netcdf_wrapper(obs_data_dir):
         nml_data.write(os.path.join(obs_seq_to_netcdf_dir_path, 'input.nml'), force=True)
 
         # run the obs_seq_to_netcdf utility
-        # set working directory to obs_seq_to_netcdf_utility_path for the utility to work correctly
         os.system('./obs_seq_to_netcdf')
 
         # move the netcdf file back in its appropriate place

@@ -32,8 +32,8 @@ if __name__=='__main__':
     print("Loaded assimilation data")
     observations = ObservationData(args.daDataPath, ensemble.timestamps, datacube, args.createXarrayFromScratch)
     print("Loaded observation data")
-    # openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, ensemble.numEnsembleModels, rlData, datacube, args.createXarrayFromScratch)
-    # print("Loaded open loop data")
+    openLoop = OpenLoopData(args.openLoopDataPath, ensemble.timestamps, ensemble.numEnsembleModels, rlData, datacube, args.createXarrayFromScratch)
+    print("Loaded open loop data")
 
     print(f'createDatacube: {(time_ns() - start) * math.pow(10, -6)} ms')
     # datacube bookkeeping
@@ -56,6 +56,7 @@ if __name__=='__main__':
             print('Expected POST method, but received ' + request.method)
 
     @app.route('/getMapData', methods=['POST'])
+    # netcdf files access
     def getMapData():
         if request.method == 'POST':
             start = time_ns()
@@ -104,8 +105,11 @@ if __name__=='__main__':
             stateVariable = query['stateVariable']
             linkID = query['linkID']
 
-            # distributionData = json.dumps(ensemble.getEnsembleData(timestamp, stateVariable, linkID))
-            distributionData =json.dumps(ensemble.getDistributionData(datacube, timestamp, stateVariable, linkID))
+            # netcdf file access
+            distributionData = json.dumps(ensemble.getEnsembleData(timestamp, stateVariable, linkID))
+
+            # xarray access
+            # distributionData =json.dumps(ensemble.getDistributionData(datacube, timestamp, stateVariable, linkID))
             
             print(f'getDistributionData: {(time_ns() - start) * math.pow(10, -6)} ms')
 
@@ -121,14 +125,17 @@ if __name__=='__main__':
             linkID = query['linkID']
             stateVariable = query['stateVariable']
             aggregation = query['aggregation']
-            # readFromGaugeLocation = query['readFromGaugeLocation']
 
-            # if readFromGaugeLocation and stateVariable == 'qlink1':
-            #     hydrographData = json.dumps(observations.getHydrographStateVariableData(linkID, aggregation))
-            # else:
-            #     hydrographData = json.dumps(ensemble.getHydrographStateVariableData(linkID, aggregation, stateVariable))
+            # netcdf files access
+            readFromGaugeLocation = query['readFromGaugeLocation']
 
-            hydrographData = json.dumps(ensemble.getStateVariableHydrographData(datacube, linkID, aggregation, stateVariable))
+            if readFromGaugeLocation and stateVariable == 'qlink1':
+                hydrographData = json.dumps(observations.getHydrographStateVariableData(linkID, aggregation))
+            else:
+                hydrographData = json.dumps(ensemble.getHydrographStateVariableData(linkID, aggregation, stateVariable))
+
+            # xarray access
+            # hydrographData = json.dumps(ensemble.getStateVariableHydrographData(datacube, linkID, aggregation, stateVariable))
 
             print(f'getHydrographStateVariableData: {(time_ns() - start) * math.pow(10, -6)} ms')
             
@@ -158,8 +165,11 @@ if __name__=='__main__':
             stateVariable = query['stateVariable']
             inflation = query['inflation']
 
-            # hydrographData = json.dumps(ensemble.getHydrographInflationData(linkID, stateVariable, inflation))
-            hydrographData = json.dumps(ensemble.getInflationHydrographData(datacube, linkID, stateVariable, inflation))
+            # netcdf files access
+            hydrographData = json.dumps(ensemble.getHydrographInflationData(linkID, stateVariable, inflation))
+
+            # xarray access
+            # hydrographData = json.dumps(ensemble.getInflationHydrographData(datacube, linkID, stateVariable, inflation))
 
             print(f'getInflationHydrographData: {(time_ns() - start) * math.pow(10, -6)} ms')
             return hydrographData

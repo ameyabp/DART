@@ -621,7 +621,7 @@ export async function drawMapData() {
             })
     })
     .then(function(wrf_hydro_data) {
-        console.log(wrf_hydro_data);
+        // console.log(wrf_hydro_data);
 
         var colorScale = mapPlotParams.getMapColorScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
         var sizeScale = mapPlotParams.getMapSizeScale(d3.extent(wrf_hydro_data, d => d[stateVariable]));
